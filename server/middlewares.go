@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func ginLogger(logger *zap.Logger) gin.HandlerFunc {
+func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -37,7 +37,7 @@ func ginLogger(logger *zap.Logger) gin.HandlerFunc {
 	}
 }
 
-func ginRecovery(logger *zap.Logger) gin.HandlerFunc {
+func GinRecovery(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -71,7 +71,7 @@ func ginRecovery(logger *zap.Logger) gin.HandlerFunc {
 	}
 }
 
-func parseUserAgent() gin.HandlerFunc {
+func ParseUserAgent() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		parsedUA := useragent.Parse(c.Request.Header.Get("User-Agent"))
 		ctx := context.WithValue(c.Request.Context(), "parsedUA", parsedUA)
@@ -80,7 +80,7 @@ func parseUserAgent() gin.HandlerFunc {
 	}
 }
 
-func setResponseHeaders() gin.HandlerFunc {
+func SetResponseHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Transfer-Encoding", "identity")
 		c.Next()

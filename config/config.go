@@ -54,7 +54,7 @@ func Init() {
 			panic(fmt.Errorf("failed to merge config map into Viper: %w", err))
 		}
 	} else {
-		reader, err := os.Open(fmt.Sprintf("./config/%s.json", envFile))
+		reader, err := os.Open(fmt.Sprintf("./env.%s.json", envFile))
 		if err != nil {
 			panic(fmt.Errorf("unable to read config file\n %w", err))
 		}
