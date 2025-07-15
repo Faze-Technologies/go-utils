@@ -2,7 +2,7 @@ package server
 
 import (
 	"github.com/Faze-Technologies/go-utils/config"
-	"github.com/Faze-Technologies/go-utils/utils"
+	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -14,7 +14,7 @@ func GetGinRouter() (*gin.Engine, error) {
 	} else {
 		gin.SetMode(gin.DebugMode)
 	}
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	router := gin.New()
 	router.UseH2C = true
 	router.RemoveExtraSlash = true

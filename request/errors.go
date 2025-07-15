@@ -1,22 +1,19 @@
-package data
+package request
 
-import (
-	"github.com/Faze-Technologies/go-utils/constants"
-	"net/http"
-)
+import "net/http"
 
 type ServiceError struct {
 	error
 	HttpStatus int
 	Message    string
-	ErrorCode  constants.ErrorCode
+	ErrorCode  ErrorCode
 	Data       interface{}
 }
 
 func CreateBadRequestError(err error, message string) *ServiceError {
 	sErr := ServiceError{}
 	statusCode := http.StatusBadRequest
-	errorCode := constants.BadRequestError
+	errorCode := BadRequestError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
 	return &sErr
 }
@@ -24,7 +21,7 @@ func CreateBadRequestError(err error, message string) *ServiceError {
 func CreateInternalServerError(err error) *ServiceError {
 	sErr := ServiceError{}
 	statusCode := http.StatusInternalServerError
-	errorCode := constants.InternalServerError
+	errorCode := InternalServerError
 	sErr.generateCustomError(statusCode, errorCode, "Internal Server Error", err, nil)
 	return &sErr
 }
@@ -32,7 +29,7 @@ func CreateInternalServerError(err error) *ServiceError {
 func CreateConflictError(err error, message string) *ServiceError {
 	sErr := ServiceError{}
 	statusCode := http.StatusConflict
-	errorCode := constants.AlreadyExistsError
+	errorCode := AlreadyExistsError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
 	return &sErr
 }
@@ -40,7 +37,7 @@ func CreateConflictError(err error, message string) *ServiceError {
 func CreateNotFoundError(err error, message string) *ServiceError {
 	sErr := ServiceError{}
 	statusCode := http.StatusNotFound
-	errorCode := constants.NotFoundError
+	errorCode := NotFoundError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
 	return &sErr
 }
@@ -48,7 +45,7 @@ func CreateNotFoundError(err error, message string) *ServiceError {
 func CreateTooManyRequestsError(err error, message string) *ServiceError {
 	sErr := ServiceError{}
 	statusCode := http.StatusNotFound
-	errorCode := constants.ResourceExhaustedError
+	errorCode := ResourceExhaustedError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
 	return &sErr
 }
@@ -56,12 +53,12 @@ func CreateTooManyRequestsError(err error, message string) *ServiceError {
 func CreateUnauthorizedError(err error, message string) *ServiceError {
 	sErr := ServiceError{}
 	statusCode := http.StatusUnauthorized
-	errorCode := constants.UnauthorizedError
+	errorCode := UnauthorizedError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
 	return &sErr
 }
 
-func (e *ServiceError) generateCustomError(statusCode int, errorCode constants.ErrorCode, message string, err error, data interface{}) {
+func (e *ServiceError) generateCustomError(statusCode int, errorCode ErrorCode, message string, err error, data interface{}) {
 	e.HttpStatus = statusCode
 	if e.error != nil && e.error.Error() != "" {
 		e.Message = e.Error()

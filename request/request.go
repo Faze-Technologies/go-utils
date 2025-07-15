@@ -1,15 +1,14 @@
-package utils
+package request
 
 import (
 	"errors"
 	"fmt"
-	"github.com/Faze-Technologies/go-utils/data"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"net/http"
 )
 
-func SendServiceError(c *gin.Context, err *data.ServiceError) {
+func SendServiceError(c *gin.Context, err *ServiceError) {
 	c.JSON(err.HttpStatus, gin.H{
 		"status":  "error",
 		"error":   err.ErrorCode,

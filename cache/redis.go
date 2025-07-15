@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Faze-Technologies/go-utils/config"
-	"github.com/Faze-Technologies/go-utils/constants"
-	"github.com/Faze-Technologies/go-utils/utils"
+	"github.com/Faze-Technologies/go-utils/logs"
+	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/goccy/go-json"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -18,7 +18,7 @@ type Cache struct {
 }
 
 func NewCache() *Cache {
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.GetString("redis.address"),
 		Password: config.GetString("redis.password"),
@@ -41,14 +41,14 @@ func (cache Cache) SetJson(ctx context.Context, key string, value interface{}, e
 		return err
 	}
 	result := cache.rDB.Set(ctx, key, bytes, expiration)
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	logger.Debug("SETTING IN REDIS", zap.String("key", key), zap.String("exp", expiration.String()))
 	return result.Err()
 }
 
 func (cache Cache) Set(ctx context.Context, key string, value string, expiration time.Duration) error {
 	result := cache.rDB.Set(ctx, key, value, expiration)
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	logger.Debug("SETTING IN REDIS",
 		zap.String("key", key),
 		zap.String("value", value),
@@ -65,7 +65,7 @@ func (cache Cache) Incr(ctx context.Context, key string, expiration time.Duratio
 	if count == 1 && expiration != 0 {
 		cache.rDB.Expire(ctx, key, expiration)
 	}
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	logger.Debug("INCREMENTING IN REDIS", zap.String("key", key), zap.Int64("count", count))
 	return count, nil
 }
@@ -78,13 +78,13 @@ func (cache Cache) Get(ctx context.Context, key string) (string, error) {
 	result, err := cache.rDB.Get(ctx, key).Result()
 	switch {
 	case errors.Is(err, redis.Nil):
-		return "", fmt.Errorf(string(constants.KeyNotFoundError))
+		return "", fmt.Errorf(string(request.KeyNotFoundError))
 	case err != nil:
 		return "", err
 	case result == "":
-		return "", fmt.Errorf(string(constants.KeyNotFoundError))
+		return "", fmt.Errorf(string(request.KeyNotFoundError))
 	}
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	logger.Debug("GETTING FROM REDIS", zap.String("key", key))
 	return result, nil
 }
@@ -95,7 +95,7 @@ func (cache Cache) GetJSON(ctx context.Context, key string, value interface{}) e
 	if err != nil {
 		return err
 	}
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	logger.Debug("GETTING FROM REDIS", zap.String("key", key))
 	return json.Unmarshal(storedBytes, &value)
 }
@@ -105,7 +105,7 @@ func (cache Cache) Delete(ctx context.Context, key string) error {
 }
 
 func (cache Cache) DeleteWithPattern(ctx context.Context, pattern string) error {
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	logger.Debug("DELETING KEYS MATCHING PATTERN", zap.String("pattern", pattern))
 	result, err := cache.rDB.Keys(ctx, pattern).Result()
 	if err != nil {

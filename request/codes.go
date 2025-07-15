@@ -1,4 +1,4 @@
-package constants
+package request
 
 type ErrorCode string
 

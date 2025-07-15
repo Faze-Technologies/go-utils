@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 	"github.com/Faze-Technologies/go-utils/config"
-	"github.com/Faze-Technologies/go-utils/utils"
+	"github.com/Faze-Technologies/go-utils/logs"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.uber.org/zap"
@@ -11,7 +11,7 @@ import (
 )
 
 func InitMongoDB() *mongo.Client {
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 	dbURL := fmt.Sprintf("mongodb+srv://%s:%s@%s/?retryWrites=true&w=majority",
 		config.GetString("mongodb.user"),
 		url.PathEscape(config.GetString("mongodb.password")),

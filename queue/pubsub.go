@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Faze-Technologies/go-utils/config"
-	"github.com/Faze-Technologies/go-utils/utils"
+	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/goccy/go-json"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
@@ -38,7 +38,7 @@ func NewPubSubClient(logger *zap.Logger) *PubSubClient {
 }
 
 func (p *PubSubClient) SendMessageToQueue(ctx context.Context, topicID, message string) error {
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 
 	topic := p.client.Topic(topicID)
 	defer topic.Stop()
@@ -57,7 +57,7 @@ func (p *PubSubClient) SendMessageToQueue(ctx context.Context, topicID, message 
 }
 
 func (p *PubSubClient) ReceiveMessage(ctx context.Context, topicID string, processFunc func(*pubsub.Message) error) error {
-	logger := utils.GetLogger()
+	logger := logs.GetLogger()
 
 	subID := fmt.Sprintf("%s-sub", topicID)
 	sub := p.client.Subscription(subID)

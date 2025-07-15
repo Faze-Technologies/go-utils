@@ -2,8 +2,7 @@ package server
 
 import (
 	"context"
-	"github.com/Faze-Technologies/go-utils/data"
-	"github.com/Faze-Technologies/go-utils/utils"
+	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/gin-gonic/gin"
 	"github.com/mileusna/useragent"
 	"go.uber.org/zap"
@@ -20,7 +19,7 @@ func ginLogger(logger *zap.Logger) gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
-		c.Set("logger", logger)
+		c.Set("logs", logger)
 
 		c.Next()
 
@@ -65,7 +64,7 @@ func ginRecovery(logger *zap.Logger) gin.HandlerFunc {
 				logger.Sugar().Error(err)
 				logger.Sugar().Error(string(debug.Stack()))
 				logger.Sugar().Error("[raw http request] ", string(httpRequest))
-				utils.SendServiceError(c, data.CreateInternalServerError(nil))
+				request.SendServiceError(c, request.CreateInternalServerError(nil))
 			}
 		}()
 		c.Next()
