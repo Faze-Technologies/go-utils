@@ -15,7 +15,8 @@ type PubSubClient struct {
 	client *pubsub.Client
 }
 
-func NewPubSubClient(logger *zap.Logger) *PubSubClient {
+func NewPubSubClient() *PubSubClient {
+	logger := logs.GetLogger()
 	projectID := config.GetString("pubSub.project_id")
 	if projectID == "" {
 		logger.Fatal("GCP Project ID not configured.")

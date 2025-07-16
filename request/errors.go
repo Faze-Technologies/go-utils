@@ -1,6 +1,8 @@
 package request
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type ServiceError struct {
 	error
@@ -55,6 +57,22 @@ func CreateUnauthorizedError(err error, message string) *ServiceError {
 	statusCode := http.StatusUnauthorized
 	errorCode := UnauthorizedError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
+	return &sErr
+}
+
+func CreateVerificationError(err error, message string) *ServiceError {
+	sErr := ServiceError{}
+	statusCode := http.StatusPreconditionRequired
+	errorCode := VerificationError
+	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
+	return &sErr
+}
+
+func CreateMFAError(err error, data interface{}) *ServiceError {
+	sErr := ServiceError{}
+	statusCode := http.StatusPreconditionRequired
+	errorCode := MFARequiredError
+	sErr.generateCustomError(statusCode, errorCode, "MFA Required", err, data)
 	return &sErr
 }
 
