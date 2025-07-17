@@ -1,10 +1,7 @@
 package request
 
 import (
-	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"net/http"
 )
 
@@ -22,12 +19,4 @@ func SendSuccessResponse(c *gin.Context, res interface{}) {
 		"status": "success",
 		"data":   res,
 	})
-}
-
-func FormatValidateErrors(validationErrors *validator.ValidationErrors) string {
-	errRes := make([]error, 0)
-	for _, e := range *validationErrors {
-		errRes = append(errRes, fmt.Errorf("invalid value field %s", e.Field()))
-	}
-	return errors.Join(errRes...).Error()
 }
