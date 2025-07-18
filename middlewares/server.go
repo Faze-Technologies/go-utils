@@ -1,10 +1,8 @@
-package server
+package middlewares
 
 import (
-	"context"
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/gin-gonic/gin"
-	"github.com/mileusna/useragent"
 	"go.uber.org/zap"
 	"net"
 	"net/http/httputil"
@@ -67,22 +65,6 @@ func GinRecovery(logger *zap.Logger) gin.HandlerFunc {
 				request.SendServiceError(c, request.CreateInternalServerError(nil))
 			}
 		}()
-		c.Next()
-	}
-}
-
-func ParseUserAgent() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		parsedUA := useragent.Parse(c.Request.Header.Get("User-Agent"))
-		ctx := context.WithValue(c.Request.Context(), "parsedUA", parsedUA)
-		c.Request = c.Request.WithContext(ctx)
-		c.Next()
-	}
-}
-
-func SetResponseHeaders() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Transfer-Encoding", "identity")
 		c.Next()
 	}
 }

@@ -7,13 +7,14 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/goccy/go-json v0.10.5
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/mileusna/useragent v1.3.5
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/spf13/viper v1.20.1
 	go.mongodb.org/mongo-driver/v2 v2.2.2
 	go.uber.org/zap v1.27.0
-	google.golang.org/api v0.241.0
+	google.golang.org/api v0.242.0
 )
 
 require (
