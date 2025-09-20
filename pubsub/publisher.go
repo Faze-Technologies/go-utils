@@ -9,23 +9,34 @@ import (
 )
 
 // Publish publishes a message to a topic
-func Publish(ctx context.Context, topicID string, data []byte, attrs map[string]string) (string, error) {
+func Publish(ctx context.Context, topicID string, payload interface{}, attrs map[string]string) (string, error) {
 	client := GetClient()
-	topic := client.Topic(topicID)
-	var msgData []byte
-	if _, ok := attrs["queueName"]; ok {
-		wrappedMessage := map[string]interface{}{
-			"data": string(data), // JSON string that will be base64 encoded
-		}
-		wrappedBytes, _ := json.Marshal(wrappedMessage)
-		msgData = wrappedBytes
-	} else {
-		msgData = data
+
+	rawBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
+
+	var finalData []byte
+
+	if _, ok := attrs["queueName"]; ok {
+		outer := map[string]string{
+			"data": string(rawBytes),
+		}
+		finalData, err = json.Marshal(outer)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal outer payload: %w", err)
+		}
+	} else {
+		finalData = rawBytes
+	}
+
+	topic := client.Topic(topicID)
 	result := topic.Publish(ctx, &pubsub.Message{
-		Data:       msgData,
+		Data:       finalData,
 		Attributes: attrs,
 	})
+
 	id, err := result.Get(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to publish message: %w", err)
