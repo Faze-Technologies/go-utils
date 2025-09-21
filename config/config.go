@@ -65,6 +65,19 @@ func Init() {
 	}
 }
 
+
+func GetServiceURL(service string) string {
+	isLocal := viper.GetBool("isLocalDevelopment")
+	stage := viper.GetString("environment")
+
+	if isLocal {
+		proxies := ProxyServices(stage)
+		return proxies[service]
+	}
+
+	return InternalServices[service]
+}
+
 func MergeConfigFromFilePath(key string, path string) {
 	viper.SetConfigType("json")
 	reader, err := os.Open(path)
