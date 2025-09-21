@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	cloud.google.com/go/pubsub v1.49.0
+	github.com/aerospike/aerospike-client-go/v6 v6.16.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/goccy/go-json v0.10.5
@@ -71,6 +72,7 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.einride.tech/aip v0.73.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

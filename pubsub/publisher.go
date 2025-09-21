@@ -6,6 +6,9 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/pubsub"
+
+	"github.com/Faze-Technologies/go-utils/logs"
+	"go.uber.org/zap"
 )
 
 // Publish publishes a message to a topic
@@ -14,6 +17,7 @@ func Publish(ctx context.Context, topicID string, payload interface{}, attrs map
 
 	rawBytes, err := json.Marshal(payload)
 	if err != nil {
+		logs.GetLogger().Error("failed to marshal payload", zap.String("topicID", topicID), zap.Error(err))
 		return "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
@@ -25,6 +29,7 @@ func Publish(ctx context.Context, topicID string, payload interface{}, attrs map
 		}
 		finalData, err = json.Marshal(outer)
 		if err != nil {
+			logs.GetLogger().Error("failed to marshal outer payload", zap.String("topicID", topicID), zap.Error(err))
 			return "", fmt.Errorf("failed to marshal outer payload: %w", err)
 		}
 	} else {
@@ -39,6 +44,7 @@ func Publish(ctx context.Context, topicID string, payload interface{}, attrs map
 
 	id, err := result.Get(ctx)
 	if err != nil {
+		logs.GetLogger().Error("failed to publish message", zap.String("topicID", topicID), zap.Error(err))
 		return "", fmt.Errorf("failed to publish message: %w", err)
 	}
 	return id, nil
