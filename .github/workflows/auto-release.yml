@@ -1,21 +1,26 @@
 name: Auto Release
 
 on:
-  push:
-    branches:
-      - master
-      - main
-  pull_request:
-    types:
-      - closed
-    branches:
-      - master
-      - main
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Version bump type"
+        required: true
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      skip_version_check:
+        description: "Skip version existence check"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   auto-release:
-    # Only run when PR is merged (not just closed)
-    if: github.event_name == 'push' || (github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
     permissions:
@@ -49,6 +54,7 @@ jobs:
         id: version_bump
         run: |
           LATEST_TAG="${{ steps.latest_tag.outputs.latest_tag }}"
+          INPUT_VERSION_TYPE="${{ github.event.inputs.version_type }}"
 
           # Get commits since last tag
           if [ "$LATEST_TAG" = "v1.0.0" ] && [ -z "$(git tag -l v1.0.0)" ]; then
@@ -62,22 +68,29 @@ jobs:
           echo "Commits to analyze:"
           echo "$COMMITS"
 
-          # Determine version bump type
-          BUMP_TYPE="patch"
-
-          # Check for breaking changes (MAJOR)
-          if echo "$COMMITS" | grep -qE "(BREAKING|breaking|!:|^[^:]+!:)"; then
-            BUMP_TYPE="major"
-          # Check for new features (MINOR)
-          elif echo "$COMMITS" | grep -qE "(feat|feature|add|new):"; then
-            BUMP_TYPE="minor"
-          # Check for fixes (PATCH)
-          elif echo "$COMMITS" | grep -qE "(fix|bug|patch|hotfix):"; then
+          # Use manual input if provided, otherwise auto-detect
+          if [ "$INPUT_VERSION_TYPE" != "auto" ]; then
+            BUMP_TYPE="$INPUT_VERSION_TYPE"
+            echo "Using manual version type: $BUMP_TYPE"
+          else
+            # Determine version bump type automatically
             BUMP_TYPE="patch"
+
+            # Check for breaking changes (MAJOR)
+            if echo "$COMMITS" | grep -qE "(BREAKING|breaking|!:|^[^:]+!:)"; then
+              BUMP_TYPE="major"
+            # Check for new features (MINOR)
+            elif echo "$COMMITS" | grep -qE "(feat|feature|add|new):"; then
+              BUMP_TYPE="minor"
+            # Check for fixes (PATCH)
+            elif echo "$COMMITS" | grep -qE "(fix|bug|patch|hotfix):"; then
+              BUMP_TYPE="patch"
+            fi
+            echo "Auto-detected bump type: $BUMP_TYPE"
           fi
 
           echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
-          echo "Detected bump type: $BUMP_TYPE"
+          echo "Final bump type: $BUMP_TYPE"
 
       - name: Calculate new version
         id: new_version
@@ -118,12 +131,17 @@ jobs:
         id: check_version
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
-          if git tag -l | grep -q "^${NEW_VERSION}$"; then
+          SKIP_CHECK="${{ github.event.inputs.skip_version_check }}"
+
+          if [ "$SKIP_CHECK" = "true" ]; then
+            echo "version_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Skipping version check as requested - will create $NEW_VERSION even if it exists"
+          elif git tag -l | grep -q "^${NEW_VERSION}$"; then
             echo "version_exists=true" >> $GITHUB_OUTPUT
-            echo "Version $NEW_VERSION already exists!"
+            echo "❌ Version $NEW_VERSION already exists!"
           else
             echo "version_exists=false" >> $GITHUB_OUTPUT
-            echo "Version $NEW_VERSION is new"
+            echo "✅ Version $NEW_VERSION is new"
           fi
 
       - name: Generate release notes
@@ -199,9 +217,15 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.new_version }}"
           BUMP_TYPE="${{ steps.version_bump.outputs.bump_type }}"
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
 
           echo "🚀 Successfully released version $NEW_VERSION"
           echo "📈 Bump type: $BUMP_TYPE"
+          if [ "$VERSION_TYPE" != "auto" ]; then
+            echo "🎯 Triggered manually with version type: $VERSION_TYPE"
+          else
+            echo "🤖 Auto-detected version type from commits"
+          fi
           echo "📦 Go module: github.com/Faze-Technologies/go-utils@$NEW_VERSION"
           echo "🔗 Release: https://github.com/${{ github.repository }}/releases/tag/$NEW_VERSION"
           echo "📚 Docs: https://pkg.go.dev/github.com/Faze-Technologies/go-utils@$NEW_VERSION"

@@ -1,16 +1,37 @@
-# Auto-Release Workflow
+# Manual Release Workflow
 
-This repository uses GitHub Actions to automatically create new releases when PRs are merged to the master branch.
+This repository uses GitHub Actions to create new releases when **manually triggered** from the GitHub UI.
 
 ## How It Works
 
-### 🚀 Automatic Triggers
-- **When**: PR is merged to `master` or direct push to `master`
-- **What**: Analyzes commits, determines version bump, creates tag, and publishes release
+### 🎯 **Manual Trigger Only**
+- **When**: You manually trigger it from GitHub Actions tab
+- **Where**: Go to Actions → "Auto Release" → "Run workflow"
+- **What**: Creates tags, releases, and publishes to Go module registry
 
-### 📊 Version Bump Rules
+### 🚀 **How to Trigger a Release**
 
-The workflow analyzes commit messages to determine the version bump type:
+1. **Go to GitHub Actions**:
+   - Navigate to your repository
+   - Click on "Actions" tab
+   - Find "Auto Release" workflow
+   - Click "Run workflow"
+
+2. **Choose Release Options**:
+   - **Version Type**: 
+     - `auto` - Automatically detect from commit messages
+     - `patch` - Force patch version (v1.0.7 → v1.0.8)
+     - `minor` - Force minor version (v1.0.7 → v1.1.0)  
+     - `major` - Force major version (v1.0.7 → v2.0.0)
+   - **Skip Version Check**: 
+     - `false` - (Default) Don't create if version already exists
+     - `true` - Create release even if version tag exists
+
+3. **Click "Run workflow"** 🚀
+
+### 📊 **Version Detection Rules**
+
+When using `auto` detection, the workflow analyzes commit messages:
 
 | Commit Message Pattern | Version Bump | Example |
 |------------------------|--------------|---------|
@@ -41,23 +62,24 @@ BREAKING: Change function signatures in auth module
 fix!: Remove legacy database connections
 ```
 
-### 🎯 What Gets Automated
+### 🎯 **What Gets Created**
 
-1. **Version Calculation**: Automatically determines next version based on commits
+1. **Version Calculation**: Determines next version based on commits or manual selection
 2. **Git Tagging**: Creates and pushes version tags (e.g., `v1.1.0`)
 3. **GitHub Release**: Creates release with auto-generated notes
 4. **Go Module Publishing**: Package becomes available on `pkg.go.dev`
 5. **Release Notes**: Generated from commit messages since last release
 
-### 🔧 Workflow Features
+### 🔧 **Workflow Features**
 
-- ✅ **Smart Version Detection**: Analyzes all commits since last tag
-- ✅ **Duplicate Prevention**: Skips if version already exists
+- ✅ **Manual Control**: You decide when to release
+- ✅ **Version Override**: Force specific version types
+- ✅ **Smart Auto-Detection**: Analyzes commits when using 'auto'
+- ✅ **Duplicate Prevention**: Optionally skip if version exists
 - ✅ **Release Notes**: Auto-generated from commit history
 - ✅ **Go Module Verification**: Tests module availability
-- ✅ **Detailed Logging**: Shows version bump reasoning
 
-### 📦 After Release
+### 📦 **After Release**
 
 Once a new version is published:
 
@@ -69,38 +91,49 @@ go get github.com/Faze-Technologies/go-utils@v1.1.0
 go get github.com/Faze-Technologies/go-utils@latest
 ```
 
-### 🛠 Manual Override
+### 🛠 **Example Scenarios**
 
-If you need to create a release manually:
+#### **Scenario 1: Auto-detect from commits**
+- Select: `auto` + `Skip version check: false`
+- Result: Analyzes commits and creates appropriate version
 
-```bash
-# Create tag locally
-git tag v1.1.0
-git push origin v1.1.0
+#### **Scenario 2: Force a minor release**
+- Select: `minor` + `Skip version check: false`  
+- Result: Creates v1.1.0 regardless of commit messages
 
-# The workflow will still create a GitHub release
-```
+#### **Scenario 3: Recreate existing version**
+- Select: `patch` + `Skip version check: true`
+- Result: Creates v1.0.8 even if it already exists
 
-### 🔍 Monitoring
+### 🔍 **Monitoring**
 
 Check the Actions tab in GitHub to see:
 - Version bump decisions
-- Release creation status
+- Release creation status  
 - Any errors or issues
 
-### 📋 Best Practices
+### 📋 **Best Practices**
 
-1. **Use Conventional Commits**: Follow the patterns above for automatic versioning
-2. **Meaningful Messages**: Write clear commit messages for better release notes
-3. **Test Before Merge**: Ensure your code works before merging to master
-4. **Review Releases**: Check the generated releases for accuracy
+1. **Use Auto-Detection**: Let the workflow analyze commits when possible
+2. **Override When Needed**: Use manual version types for special releases
+3. **Test Before Release**: Ensure your code works before triggering
+4. **Review Generated Releases**: Check the created releases for accuracy
 
 ---
+
+**Your New Workflow:**
+1. ✅ **Develop** on feature branch
+2. ✅ **Merge PR** to master
+3. ✅ **Go to GitHub Actions** 
+4. ✅ **Click "Run workflow"** on "Auto Release"
+5. ✅ **Choose version type** and click "Run workflow"
+6. 🤖 **Everything else is automatic!**
 
 **Example Workflow Output:**
 ```
 🚀 Successfully released version v1.1.0
 📈 Bump type: minor
+🎯 Triggered manually with version type: auto
 📦 Go module: github.com/Faze-Technologies/go-utils@v1.1.0
 🔗 Release: https://github.com/Faze-Technologies/go-utils/releases/tag/v1.1.0
 📚 Docs: https://pkg.go.dev/github.com/Faze-Technologies/go-utils@v1.1.0
