@@ -12,7 +12,7 @@ var logger *zap.Logger
 func NewLogger() *zap.Logger {
 	environment := config.GetString("environment")
 	var err error
-	if environment != "development" {
+	if environment == "prod" {
 		logger, err = zap.NewProduction()
 	} else {
 		logger, err = zap.NewDevelopment()
