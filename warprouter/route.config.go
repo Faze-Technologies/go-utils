@@ -1,4 +1,4 @@
-package router
+package warprouter
 
 import "github.com/gin-gonic/gin"
 

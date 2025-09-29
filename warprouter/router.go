@@ -1,4 +1,4 @@
-package router
+package warprouter
 
 import (
 	"bytes"
@@ -11,17 +11,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ------------------------ Global Middlewares ------------------------
+
+var GlobalMiddlewares []gin.HandlerFunc
+
+// RegisterGlobalMiddlewares is called from main.go
+// Example: router.RegisterGlobalMiddlewares(middlewares.AuthorizationAdminUser(true))
+func RegisterGlobalMiddlewares(mw ...gin.HandlerFunc) {
+	GlobalMiddlewares = append(GlobalMiddlewares, mw...)
+}
+
 // ------------------------ EnableRoutes ------------------------
 func EnableRoutes(parent interface{}, routes []RouteConfig) {
 	for _, route := range routes {
-		// Wrap handler with query validation & post middleware
+		// Permission middleware
+		permissionMiddleware := func(c *gin.Context) {
+			if route.Permission != "" {
+				c.Set("route_permission", route.Permission)
+			}
+			c.Next()
+		}
+
+		// Handler wrapper with validation, body checks, etc.
 		handlerWrapper := func(rc RouteConfig) gin.HandlerFunc {
 			return func(c *gin.Context) {
-				// --- Inject permission into context ---
-				if rc.Permission != "" {
-					c.Set("permission", rc.Permission)
-				}
-
 				// --- Query param validation ---
 				for name, param := range rc.QueryStringParameters {
 					value := c.Query(name)
@@ -57,12 +70,9 @@ func EnableRoutes(parent interface{}, routes []RouteConfig) {
 					}
 				}
 
-				// --- Request body required check (Handler or Service) ---
+				// --- Request body required check ---
 				if rc.RequestBodyRequired {
-					var bodyBytes []byte
-					if c.Request.Body != nil {
-						bodyBytes, _ = io.ReadAll(c.Request.Body)
-					}
+					bodyBytes, _ := io.ReadAll(c.Request.Body)
 					if len(bodyBytes) == 0 {
 						request.SendServiceError(c, &request.ServiceError{
 							HttpStatus: http.StatusBadRequest,
@@ -71,7 +81,6 @@ func EnableRoutes(parent interface{}, routes []RouteConfig) {
 						})
 						return
 					}
-					// Re-attach body so handler/service can read it
 					c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 				}
 
@@ -86,20 +95,22 @@ func EnableRoutes(parent interface{}, routes []RouteConfig) {
 						ErrorCode:  "NO_HANDLER_SERVICE",
 						Message:    "no handler or service defined",
 					})
-					return
 				}
 
 				// --- Post middleware ---
-				for _, post := range rc.PostMiddleware {
-					post(c)
+				for _, mw := range rc.PostMiddleware {
+					mw(c)
 				}
 			}
 		}(route)
 
-		// --- Combine pre-middlewares + wrapper ---
-		allHandlers := append(route.Middleware, handlerWrapper)
+		// Build middleware chain
+		allHandlers := []gin.HandlerFunc{permissionMiddleware}
+		allHandlers = append(allHandlers, route.Middleware...)  // route-specific
+		allHandlers = append(allHandlers, GlobalMiddlewares...) // global
+		allHandlers = append(allHandlers, handlerWrapper)
 
-		// --- Register route ---
+		// Register route
 		switch t := parent.(type) {
 		case *gin.Engine:
 			registerRoute(t, route, allHandlers)
@@ -156,6 +167,11 @@ func forwardToService(c *gin.Context, svc *ServiceConfig) {
 	}
 
 	fullURL := baseURL + svc.Endpoint
+
+	// Attach query params
+	if c.Request.URL.RawQuery != "" {
+		fullURL += "?" + c.Request.URL.RawQuery
+	}
 
 	var bodyBytes []byte
 	if c.Request.Body != nil {
