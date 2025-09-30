@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"github.com/goccy/go-json"
 	"os"
 	"strings"
+
+	"github.com/goccy/go-json"
 
 	"github.com/spf13/viper"
 )
@@ -64,7 +65,6 @@ func Init() {
 		}
 	}
 }
-
 
 func GetServiceURL(service string) string {
 	isLocal := viper.GetBool("isLocalDevelopment")
