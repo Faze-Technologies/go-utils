@@ -2,6 +2,8 @@ package middlewares
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/Faze-Technologies/go-utils/request"
@@ -9,7 +11,6 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type UserDetails struct {

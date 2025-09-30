@@ -3,11 +3,12 @@ package middlewares
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/Faze-Technologies/go-utils/cache"
 	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/gin-gonic/gin"
-	"time"
 )
 
 func RateLimiter(cache *cache.Cache, redisKey string) gin.HandlerFunc {

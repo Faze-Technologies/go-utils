@@ -2,6 +2,7 @@ package logs
 
 import (
 	"fmt"
+
 	"github.com/Faze-Technologies/go-utils/config"
 
 	"go.uber.org/zap"

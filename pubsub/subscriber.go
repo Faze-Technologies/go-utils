@@ -3,56 +3,48 @@ package pubsub
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	cloudpubsub "cloud.google.com/go/pubsub"
-
+	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 	"go.uber.org/zap"
 )
 
-// HandlerFn represents the function signature for subscription handlers
-type HandlerFn func(context.Context, *cloudpubsub.Message)
+type HandlerFunction func(context.Context, *cloudpubsub.Message)
 
-type PubSubConfig struct {
-	NumGoroutines          int
-	MaxOutstandingMessages int
-	MaxOutstandingBytes    int
-}
+func (ps *PubSub) StartSubscribers(handlers map[string]HandlerFunction) {
+	logger := logs.GetLogger()
+	pubsubSubscribers := config.GetSlice("pubSub.subscribers")
+	receiveSettings := cloudpubsub.ReceiveSettings{
+		NumGoroutines:          config.GetInt("pubSub.numGoroutines"),
+		MaxOutstandingMessages: config.GetInt("pubSub.maxOutstandingMessages"),
+		MaxOutstandingBytes:    config.GetInt("pubSub.maxOutstandingBytes"),
+	}
 
-// StartSubscribers starts listeners for all subscriptions in the map
-func StartSubscribers(
-	ctx context.Context,
-	topics []string,
-	handlers map[string]HandlerFn,
-	cfg PubSubConfig,
-) error {
-	client := GetClient()
+	ctx, cancel := context.WithCancel(context.Background())
+	ps.closeReceivers = cancel
 
-	for _, topicName := range topics {
+	var wg sync.WaitGroup
+	for _, topicName := range pubsubSubscribers {
 		handler, ok := handlers[topicName]
 		if !ok {
-			logs.GetLogger().Info("No handler found for topic", zap.String("topic", topicName))
+			logger.Info("No handler found for topic", zap.String("topic", topicName))
 			continue
 		}
 
 		subName := fmt.Sprintf("%s-sub", topicName)
-		sub := client.Subscription(subName)
+		sub := ps.client.Subscription(subName)
+		sub.ReceiveSettings = receiveSettings
 
-		sub.ReceiveSettings = cloudpubsub.ReceiveSettings{
-			NumGoroutines:          cfg.NumGoroutines,
-			MaxOutstandingMessages: cfg.MaxOutstandingMessages,
-			MaxOutstandingBytes:    cfg.MaxOutstandingBytes,
-		}
-
-		go func(s *cloudpubsub.Subscription, h HandlerFn, id string) {
-			logs.GetLogger().Info("Listening on subscription", zap.String("subscription", id))
-			if err := s.Receive(ctx, func(ctx context.Context, msg *cloudpubsub.Message) {
-				h(ctx, msg) // handler decides ack/nack
-			}); err != nil {
-				logs.GetLogger().Error("Error on subscription", zap.String("subscription", id), zap.Error(err))
+		wg.Add(1)
+		go func(sub *cloudpubsub.Subscription, subName string, handler func(context.Context, *cloudpubsub.Message)) {
+			defer wg.Done()
+			logger.Info("Listening on subscription", zap.String("subscription", subName))
+			if err := sub.Receive(ctx, handler); err != nil {
+				logger.Error("Error on subscription", zap.String("subscription", subName), zap.Error(err))
 			}
-		}(sub, handler, subName)
+		}(sub, subName, handler)
 	}
-
-	return nil
+	wg.Wait()
 }

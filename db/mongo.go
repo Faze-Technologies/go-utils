@@ -2,12 +2,13 @@ package db
 
 import (
 	"fmt"
+	"net/url"
+
 	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.uber.org/zap"
-	"net/url"
 )
 
 func InitMongoDB() *mongo.Client {

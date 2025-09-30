@@ -5,6 +5,7 @@ This repository uses GitHub Actions to create new releases when **manually trigg
 ## How It Works
 
 ### 🎯 **Manual Trigger Only**
+
 - **When**: You manually trigger it from GitHub Actions tab
 - **Where**: Go to Actions → "Auto Release" → "Run workflow"
 - **What**: Creates tags, releases, and publishes to Go module registry
@@ -12,20 +13,20 @@ This repository uses GitHub Actions to create new releases when **manually trigg
 ### 🚀 **How to Trigger a Release**
 
 1. **Go to GitHub Actions**:
-   - Navigate to your repository
-   - Click on "Actions" tab
-   - Find "Auto Release" workflow
-   - Click "Run workflow"
+    - Navigate to your repository
+    - Click on "Actions" tab
+    - Find "Auto Release" workflow
+    - Click "Run workflow"
 
 2. **Choose Release Options**:
-   - **Version Type**: 
-     - `auto` - Automatically detect from commit messages
-     - `patch` - Force patch version (v1.0.7 → v1.0.8)
-     - `minor` - Force minor version (v1.0.7 → v1.1.0)  
-     - `major` - Force major version (v1.0.7 → v2.0.0)
-   - **Skip Version Check**: 
-     - `false` - (Default) Don't create if version already exists
-     - `true` - Create release even if version tag exists
+    - **Version Type**:
+        - `auto` - Automatically detect from commit messages
+        - `patch` - Force patch version (v1.0.7 → v1.0.8)
+        - `minor` - Force minor version (v1.0.7 → v1.1.0)
+        - `major` - Force major version (v1.0.7 → v2.0.0)
+    - **Skip Version Check**:
+        - `false` - (Default) Don't create if version already exists
+        - `true` - Create release even if version tag exists
 
 3. **Click "Run workflow"** 🚀
 
@@ -33,15 +34,16 @@ This repository uses GitHub Actions to create new releases when **manually trigg
 
 When using `auto` detection, the workflow analyzes commit messages:
 
-| Commit Message Pattern | Version Bump | Example |
-|------------------------|--------------|---------|
-| `feat:` or `feature:` or `add:` or `new:` | **MINOR** | `v1.0.7` → `v1.1.0` |
-| `fix:` or `bug:` or `patch:` or `hotfix:` | **PATCH** | `v1.0.7` → `v1.0.8` |
-| `BREAKING` or `!:` or `breaking` | **MAJOR** | `v1.0.7` → `v2.0.0` |
+| Commit Message Pattern                    | Version Bump | Example             |
+|-------------------------------------------|--------------|---------------------|
+| `feat:` or `feature:` or `add:` or `new:` | **MINOR**    | `v1.0.7` → `v1.1.0` |
+| `fix:` or `bug:` or `patch:` or `hotfix:` | **PATCH**    | `v1.0.7` → `v1.0.8` |
+| `BREAKING` or `!:` or `breaking`          | **MAJOR**    | `v1.0.7` → `v2.0.0` |
 
 ### 📝 Commit Message Examples
 
 #### Minor Version (New Features)
+
 ```
 feat: Add new Redis caching utility
 feature: Implement JWT authentication middleware
@@ -49,6 +51,7 @@ add: New MongoDB connection helper
 ```
 
 #### Patch Version (Bug Fixes)
+
 ```
 fix: Resolve memory leak in Redis client
 bug: Fix null pointer in logger
@@ -56,6 +59,7 @@ patch: Update dependency versions
 ```
 
 #### Major Version (Breaking Changes)
+
 ```
 feat!: Remove deprecated config methods
 BREAKING: Change function signatures in auth module
@@ -94,22 +98,26 @@ go get github.com/Faze-Technologies/go-utils@latest
 ### 🛠 **Example Scenarios**
 
 #### **Scenario 1: Auto-detect from commits**
+
 - Select: `auto` + `Skip version check: false`
 - Result: Analyzes commits and creates appropriate version
 
 #### **Scenario 2: Force a minor release**
-- Select: `minor` + `Skip version check: false`  
+
+- Select: `minor` + `Skip version check: false`
 - Result: Creates v1.1.0 regardless of commit messages
 
 #### **Scenario 3: Recreate existing version**
+
 - Select: `patch` + `Skip version check: true`
 - Result: Creates v1.0.8 even if it already exists
 
 ### 🔍 **Monitoring**
 
 Check the Actions tab in GitHub to see:
+
 - Version bump decisions
-- Release creation status  
+- Release creation status
 - Any errors or issues
 
 ### 📋 **Best Practices**
@@ -122,14 +130,16 @@ Check the Actions tab in GitHub to see:
 ---
 
 **Your New Workflow:**
+
 1. ✅ **Develop** on feature branch
 2. ✅ **Merge PR** to master
-3. ✅ **Go to GitHub Actions** 
+3. ✅ **Go to GitHub Actions**
 4. ✅ **Click "Run workflow"** on "Auto Release"
 5. ✅ **Choose version type** and click "Run workflow"
 6. 🤖 **Everything else is automatic!**
 
 **Example Workflow Output:**
+
 ```
 🚀 Successfully released version v1.1.0
 📈 Bump type: minor

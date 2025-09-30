@@ -3,46 +3,40 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"sync"
 
 	cloudpubsub "cloud.google.com/go/pubsub"
+	"github.com/Faze-Technologies/go-utils/config"
 	"google.golang.org/api/option"
 
 	"github.com/Faze-Technologies/go-utils/logs"
 	"go.uber.org/zap"
 )
 
-var (
-	client     *cloudpubsub.Client
-	clientOnce sync.Once
-)
-
-// InitClient initializes a singleton Pub/Sub client using raw JSON key
-func InitClient(ctx context.Context, svcAccountJSON []byte) (*cloudpubsub.Client, error) {
-	var err error
-	clientOnce.Do(func() {
-		logs.GetLogger().Info("Initializing Pub/Sub client")
-		var creds struct {
-			ProjectID string `json:"project_id"`
-		}
-		if err = json.Unmarshal(svcAccountJSON, &creds); err != nil {
-			err = fmt.Errorf("failed to unmarshal service account json: %w", err)
-			logs.GetLogger().Error("Failed to unmarshal service account JSON", zap.Error(err))
-			return
-		}
-		logs.GetLogger().Info("Creating Pub/Sub client", zap.String("projectID", creds.ProjectID))
-		client, err = cloudpubsub.NewClient(ctx, creds.ProjectID, option.WithCredentialsJSON(svcAccountJSON))
-		if err != nil {
-			logs.GetLogger().Error("Failed to create Pub/Sub client", zap.String("projectID", creds.ProjectID), zap.Error(err))
-		} else {
-			logs.GetLogger().Info("Pub/Sub client initialized successfully", zap.String("projectID", creds.ProjectID))
-		}
-	})
-	return client, err
+type PubSub struct {
+	client         *cloudpubsub.Client
+	closeReceivers context.CancelFunc
 }
 
-// GetClient returns already initialized client
-func GetClient() *cloudpubsub.Client {
-	return client
+func InitPubSub() *PubSub {
+	logger := logs.GetLogger()
+	svcAccMap := config.GetMap("pubSub.serviceAccount")
+	projectID := config.GetString("pubSub.serviceAccount.project_id")
+	svcAccountJSON, err := json.Marshal(svcAccMap)
+	if err != nil {
+		logger.Fatal("Invalid PubSub Service Account map", zap.Error(err))
+	}
+	logger.Info("Initializing Pub/Sub client")
+	client, err := cloudpubsub.NewClient(context.Background(), projectID, option.WithCredentialsJSON(svcAccountJSON))
+	if err != nil {
+		logger.Fatal("Failed to create Pub/Sub client", zap.Error(err))
+	}
+	logger.Info("Pub/Sub client initialized successfully")
+	return &PubSub{client: client}
+}
+
+func (ps *PubSub) ClosePubSub() error {
+	if ps.closeReceivers != nil {
+		ps.closeReceivers()
+	}
+	return ps.client.Close()
 }

@@ -1,9 +1,10 @@
 package queue
 
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
+
+	"cloud.google.com/go/pubsub"
 	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/goccy/go-json"
