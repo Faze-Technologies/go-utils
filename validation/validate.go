@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	appErrors "github.com/Faze-Technologies/go-utils/errors"
+	appErrors "github.com/Faze-Technologies/go-utils/response"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
