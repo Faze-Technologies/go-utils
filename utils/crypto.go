@@ -1,0 +1,102 @@
+package utils
+
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"errors"
+	"io"
+)
+
+func EncryptSecret(plaintextSecret, masterKey string) (string, error) {
+	key := []byte(masterKey)
+	plaintext := []byte(plaintextSecret)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
+	return hex.EncodeToString(ciphertext), nil
+}
+
+func DecryptSecret(encryptedSecret, masterKey string) (string, error) {
+	key := []byte(masterKey)
+	ciphertext, err := hex.DecodeString(encryptedSecret)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	if len(ciphertext) < gcm.NonceSize() {
+		return "", errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertext := ciphertext[:gcm.NonceSize()], ciphertext[gcm.NonceSize():]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
+}
+
+func GenerateRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func GenerateHMACSignature(secretKey string, message string) string {
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(message))
+	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func ValidateHMACSignature(providedSignature, secretKey, message string) bool {
+	expectedSignature := GenerateHMACSignature(secretKey, message)
+	
+	decodedProvided, err := base64.StdEncoding.DecodeString(providedSignature)
+	if err != nil {
+		return false
+	}
+	
+	decodedExpected, err := base64.StdEncoding.DecodeString(expectedSignature)
+	if err != nil {
+		return false
+	}
+
+	return hmac.Equal(decodedProvided, decodedExpected)
+}
+
+func HashBodySHA256(body []byte) string {
+	hasher := sha256.New()
+	hasher.Write(body)
+	return hex.EncodeToString(hasher.Sum(nil))
+}
