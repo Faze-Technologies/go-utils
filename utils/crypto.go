@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	// "fmt"
 	"io"
 )
 
@@ -74,20 +75,30 @@ func GenerateRandomString(length int) (string, error) {
 }
 
 func GenerateHMACSignature(secretKey string, message string) string {
-	mac := hmac.New(sha256.New, []byte(secretKey))
+	keyBytes, err := hex.DecodeString(secretKey)
+	if err != nil {
+		return ""
+	}
+
+	mac := hmac.New(sha256.New, keyBytes)
 	mac.Write([]byte(message))
-	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
 func ValidateHMACSignature(providedSignature, secretKey, message string) bool {
 	expectedSignature := GenerateHMACSignature(secretKey, message)
-	
-	decodedProvided, err := base64.StdEncoding.DecodeString(providedSignature)
+
+	// fmt.Println("--- Inside ValidateHMACSignature ---")
+	// fmt.Printf("Provided Signature (Base64): %s\n", providedSignature)
+	// fmt.Printf("Expected Signature (Base64): %s\n", expectedSignature)
+
+	decodedProvided, err := base64.RawURLEncoding.DecodeString(providedSignature)
 	if err != nil {
+		// fmt.Printf("ERROR: Failed to decode provided signature: %v\n", err)
 		return false
 	}
-	
-	decodedExpected, err := base64.StdEncoding.DecodeString(expectedSignature)
+
+	decodedExpected, err := base64.RawURLEncoding.DecodeString(expectedSignature)
 	if err != nil {
 		return false
 	}
