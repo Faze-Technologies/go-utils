@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	// "fmt"
 	"io"
 )
 
@@ -88,13 +87,8 @@ func GenerateHMACSignature(secretKey string, message string) string {
 func ValidateHMACSignature(providedSignature, secretKey, message string) bool {
 	expectedSignature := GenerateHMACSignature(secretKey, message)
 
-	// fmt.Println("--- Inside ValidateHMACSignature ---")
-	// fmt.Printf("Provided Signature (Base64): %s\n", providedSignature)
-	// fmt.Printf("Expected Signature (Base64): %s\n", expectedSignature)
-
 	decodedProvided, err := base64.RawURLEncoding.DecodeString(providedSignature)
 	if err != nil {
-		// fmt.Printf("ERROR: Failed to decode provided signature: %v\n", err)
 		return false
 	}
 
