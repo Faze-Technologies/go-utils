@@ -58,6 +58,7 @@ var InternalServices = map[string]string{
 	"fandomPacksService":            "http://fandom-packs-service.fandom-packs-service.svc.cluster.local",
 	"fandomFinanceService":          "http://fandom-finance-service.fandom-finance-service.svc.cluster.local",
 	"fandomFinanceAdminService":     "http://fandom-finance-admin-service.fandom-finance-admin-service.svc.cluster.local",
+	"openApiAuthService":            "http://openapi-auth-service.openapi-auth-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
