@@ -35,6 +35,7 @@ var InternalServices = map[string]string{
 	"notificationService":           "http://notification-service.notification-service.svc.cluster.local",
 	"notificationV2Service":         "http://notification-service-v2.notification-service-v2.svc.cluster.local/notify/v2",
 	"packService":                   "http://packs-service.packs-service.svc.cluster.local/packs",
+	"packsTradeService":             "http://packs-trade-service.packs-trade-service.svc.cluster.local",
 	"partnerService":                "http://partner-service.partner-service.svc.cluster.local/partners",
 	"personalizationService":        "http://personalization-service.personalization-service.svc.cluster.local",
 	"playerService":                 "http://team-service.team-service.svc.cluster.local/player",
