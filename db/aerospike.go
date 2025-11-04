@@ -2,6 +2,8 @@ package db
 
 import (
 	"crypto/tls"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Faze-Technologies/go-utils/config"
@@ -13,8 +15,7 @@ import (
 func InitAerospikeDB() *aerospike.Client {
 	logger := logs.GetLogger()
 
-	// Get configuration values for Kubernetes deployment
-	host := config.GetString("aerospike.host")
+	// Get configuration values
 	port := config.GetInt("aerospike.port")
 
 	// Set default port if not specified (standard Aerospike port)
@@ -22,9 +23,7 @@ func InitAerospikeDB() *aerospike.Client {
 		port = 3000 // Default Aerospike port
 	}
 
-	logger.Info("Connecting to Aerospike Kubernetes Cluster",
-		zap.String("host", host),
-		zap.Int("port", port))
+	logger.Info("Connecting to Aerospike cluster", zap.Int("port", port))
 
 	// Create Aerospike client policy optimized for K8s
 	clientPolicy := aerospike.NewClientPolicy()
@@ -63,21 +62,52 @@ func InitAerospikeDB() *aerospike.Client {
 		logger.Info("Using TLS for Aerospike connection", zap.String("tls_name", tlsName))
 	}
 
-	// Create the client connection
-	client, err := aerospike.NewClientWithPolicy(clientPolicy, host, port)
+	// Expect only array form in config: `aerospike.hosts: ["ip1","ip2"]`
+	hostCandidates := []string{}
+	hostSlice := config.GetSlice("aerospike.hosts")
+	if len(hostSlice) == 0 {
+		logger.Fatal("`aerospike.hosts` must be provided as an array of host addresses")
+		return nil
+	}
+	for _, hh := range hostSlice {
+		h := strings.TrimSpace(hh)
+		if h == "" {
+			continue
+		}
+		if !strings.Contains(h, ":") {
+			h = h + ":" + strconv.Itoa(port)
+		}
+		hostCandidates = append(hostCandidates, h)
+	}
+
+	if len(hostCandidates) == 0 {
+		logger.Fatal("No Aerospike hosts provided in configuration")
+		return nil
+	}
+
+	// Create aerospike.Host instances using NewHosts and let the client do
+	// cluster discovery. This is the recommended approach: pass seed-list to
+	// the client (it will discover the rest of the cluster).
+	logger.Info("Creating Aerospike seed hosts", zap.Strings("hosts", hostCandidates))
+	hosts, herr := aerospike.NewHosts(hostCandidates...)
+	if herr != nil {
+		logger.Fatal("Failed to parse Aerospike host addresses", zap.Error(herr))
+		return nil
+	}
+
+	client, err := aerospike.NewClientWithPolicyAndHost(clientPolicy, hosts...)
 	if err != nil {
-		logger.Fatal("Error connecting to Aerospike K8s cluster", zap.Error(err))
+		logger.Fatal("Error creating Aerospike client with seed hosts", zap.Error(err))
 		return nil
 	}
 
-	// Test the connection
 	if !client.IsConnected() {
-		logger.Fatal("Failed to establish connection to Aerospike K8s cluster")
+		client.Close()
+		logger.Fatal("Failed to establish connection to Aerospike cluster using provided seed hosts")
 		return nil
 	}
 
-	logger.Info("Successfully connected to Aerospike Kubernetes cluster!")
-
+	logger.Info("Successfully connected to Aerospike cluster via seed hosts")
 	return client
 }
 
