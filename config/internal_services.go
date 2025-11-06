@@ -57,8 +57,8 @@ var InternalServices = map[string]string{
 	"superteamUserService":             "http://superteam-user-service.superteam-user-service.svc.cluster.local",
 	"superteamPacksAdminService":       "http://superteam-packs-admin-service.superteam-packs-admin-service.svc.cluster.local",
 	"superteamPacksService":            "http://superteam-packs-service.superteam-packs-service.svc.cluster.local",
-	"finopsService":                    "http://superteam-finops-service.superteam-finops-service.svc.cluster.local",
-	"finopsAdminService":               "http://superteam-finops-admin-service.superteam-finops-admin-service.svc.cluster.local",
+	"finopsService":                    "http://finops-service.finops-service.svc.cluster.local",
+	"finopsAdminService":               "http://finops-admin-service.finops-admin-service.svc.cluster.local",
 	"openApiAuthService":               "http://openapi-auth-service.openapi-auth-service.svc.cluster.local",
 }
 
