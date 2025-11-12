@@ -4,6 +4,7 @@ package config
 var InternalServices = map[string]string{
 	"segmentationService":              "http://segmentation-service.segmentation-service.svc.cluster.local",
 	"analyticsService":                 "http://analytics-service.analytics-service.svc.cluster.local",
+	"albumService":                     "http://album-service.album-service.svc.cluster.local",
 	"authService":                      "http://new-auth-service.new-auth-service.svc.cluster.local",
 	"blockChainHookService":            "http://blockchain-request-hook-service.blockchain-request-hook-service.svc.cluster.local",
 	"blockChainRequestService":         "http://blockchain-request-service.blockchain-request-service.svc.cluster.local",
@@ -58,8 +59,8 @@ var InternalServices = map[string]string{
 	"superteamUserService":             "http://superteam-user-service.superteam-user-service.svc.cluster.local",
 	"superteamPacksAdminService":       "http://superteam-packs-admin-service.superteam-packs-admin-service.svc.cluster.local",
 	"superteamPacksService":            "http://superteam-packs-service.superteam-packs-service.svc.cluster.local",
-	"cmTradeAdminService":            	"http://cm-trade-admin-service.cm-trade-admin-service.svc.cluster.local",
-	"cmTradeService":                 	"http://cm-trade-service.cm-trade-service.svc.cluster.local",
+	"cmTradeAdminService":              "http://cm-trade-admin-service.cm-trade-admin-service.svc.cluster.local",
+	"cmTradeService":                   "http://cm-trade-service.cm-trade-service.svc.cluster.local",
 	"finopsAdminService":               "http://finops-admin-service.finops-admin-service.svc.cluster.local",
 	"openApiAuthService":               "http://openapi-auth-service.openapi-auth-service.svc.cluster.local",
 }
