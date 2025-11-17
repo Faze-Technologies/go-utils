@@ -63,7 +63,7 @@ var InternalServices = map[string]string{
 	"cmTradeService":                   "http://cm-trade-service.cm-trade-service.svc.cluster.local",
 	"finopsAdminService":               "http://finops-admin-service.finops-admin-service.svc.cluster.local",
 	"openApiAuthService":               "http://openapi-auth-service.openapi-auth-service.svc.cluster.local",
-	"superteamScrapeService":           "http://superteam-scrape-service.superteam-scrape-service.svc.cluster.local",
+	"superteamScrapService":           "http://superteam-scrap-service.superteam-scrap-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
