@@ -59,6 +59,9 @@ var InternalServices = map[string]string{
 	"superteamUserService":             "http://superteam-user-service.superteam-user-service.svc.cluster.local",
 	"superteamPacksAdminService":       "http://superteam-packs-admin-service.superteam-packs-admin-service.svc.cluster.local",
 	"superteamPacksService":            "http://superteam-packs-service.superteam-packs-service.svc.cluster.local",
+	"cmBaseBlockchainService":          "http://cm-base-blockchain-service.cm-base-blockchain-service.svc.cluster.local",
+	"cmRelayerService":                 "http://cm-relayer-service.cm-relayer-service.svc.cluster.local/",
+	"cmKeyService":                     "http://cm-key-service.cm-key-service.svc.cluster.local",
 	"cmTradeAdminService":              "http://cm-trade-admin-service.cm-trade-admin-service.svc.cluster.local",
 	"cmTradeService":                   "http://cm-trade-service.cm-trade-service.svc.cluster.local",
 	"finopsAdminService":               "http://finops-admin-service.finops-admin-service.svc.cluster.local",
@@ -70,10 +73,10 @@ var InternalServices = map[string]string{
 }
 
 // ProxyServices generates the proxy URLs if needed
-func ProxyServices(stage string) map[string]string {
+func ProxyServices(env string) map[string]string {
 	proxies := make(map[string]string)
 	for k := range InternalServices {
-		proxies[k] = "https://proxy." + stage + ".munna-bhai.xyz/proxy/" + k
+		proxies[k] = "https://proxy." + env + ".munna-bhai.xyz/proxy/" + k
 	}
 	return proxies
 }
