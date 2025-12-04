@@ -29,6 +29,11 @@ func InitializeMiddlewares(cache *cache.Cache, logger *zap.Logger) *Middlewares 
 	}
 }
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const userContextKey contextKey = "user"
+
 type UserDetails struct {
 	Id            string                 `json:"id"`
 	Email         string                 `json:"email"`
@@ -46,7 +51,7 @@ type UserDetails struct {
 }
 
 func GetAuthUser(c *gin.Context) (*UserDetails, *request.ServiceError) {
-	user, ok := c.Request.Context().Value("user").(UserDetails)
+	user, ok := c.Request.Context().Value(userContextKey).(UserDetails)
 	if !ok {
 		return nil, request.CreateUnauthorizedError(nil, "User is not authenticated")
 	}
@@ -222,7 +227,7 @@ func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 	// Update user KYC status with verified value
 	user.KycStatus = verifiedKycStatus
 
-	ctx := context.WithValue(c.Request.Context(), "user", user)
+	ctx := context.WithValue(c.Request.Context(), userContextKey, user)
 	c.Request = c.Request.WithContext(ctx)
 	c.Next()
 }
