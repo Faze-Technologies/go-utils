@@ -2,16 +2,32 @@ package middlewares
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/Faze-Technologies/go-utils/cache"
 	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/gin-gonic/gin"
+	"github.com/go-resty/resty/v2"
 	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
 )
+
+type Middlewares struct {
+	Cache  *cache.Cache
+	Logger *zap.Logger
+}
+
+func InitializeMiddlewares(cache *cache.Cache, logger *zap.Logger) *Middlewares {
+	return &Middlewares{
+		Cache:  cache,
+		Logger: logger,
+	}
+}
 
 type UserDetails struct {
 	Id            string                 `json:"id"`
@@ -24,6 +40,7 @@ type UserDetails struct {
 	ExternalId    string                 `json:"externalId"`
 	MfaMethod     string                 `json:"mfaMethod"`
 	Metadata      map[string]interface{} `json:"metadata"`
+	KycStatus     bool                   `json:"kycStatus"`
 	CreatedAt     string                 `json:"createdAt"`
 	UpdatedAt     string                 `json:"updatedAt"`
 }
@@ -60,7 +77,100 @@ func verifyTokenSignature(token string) (*jwt.Token, *request.ServiceError) {
 	return parsedToken, nil
 }
 
-func AuthenticateUser(c *gin.Context) {
+type KYCAPIResponse struct {
+	Success   bool                   `json:"success"`
+	ErrorCode int                    `json:"error_code"`
+	Message   string                 `json:"message"`
+	Data      map[string]interface{} `json:"data"`
+}
+
+func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip string, tokenKycStatus bool) (bool, error) {
+	logger := m.Logger
+
+	// If KYC is true in token, allow immediately
+	if tokenKycStatus {
+		return true, nil
+	}
+
+	// Check Redis cache
+	cacheKey := fmt.Sprintf("kyc:status:%s", userId)
+	cachedStatus, err := m.Cache.Get(ctx, cacheKey)
+
+	if err == nil && cachedStatus != "" {
+		// Cache hit - return cached value
+		logger.Debug("KYC status found in cache", zap.String("userId", userId), zap.String("status", cachedStatus))
+		return cachedStatus == "true", nil
+	}
+
+	// Cache miss - call KYC API
+	logger.Debug("KYC status not in cache, calling API", zap.String("userId", userId))
+	baseURL := config.GetServiceURL("kycService")
+	url := fmt.Sprintf("%s/kyc/getKycInfo", baseURL)
+
+	client := resty.New().
+		SetTimeout(10*time.Second).
+		SetHeader("Content-Type", "application/json")
+
+	var kycResponse KYCAPIResponse
+
+	resp, err := client.R().
+		SetContext(ctx).
+		SetQueryParam("id", userId).
+		SetQueryParam("ip", ip).
+		SetResult(&kycResponse).
+		Get(url)
+
+	if err != nil {
+		logger.Error("Request to KYC service failed", zap.String("url", url), zap.String("userId", userId), zap.Error(err))
+		return false, fmt.Errorf("request failed: %w", err)
+	}
+
+	if !resp.IsSuccess() {
+		logger.Error("HTTP error from KYC service", zap.Int("statusCode", resp.StatusCode()), zap.String("body", resp.String()))
+		return false, fmt.Errorf("HTTP %d: %s", resp.StatusCode(), resp.String())
+	}
+
+	// Check if status or verified field is "completed"
+	kycData := kycResponse.Data
+	status, statusOk := kycData["status"].(string)
+	verified, verifiedOk := kycData["verified"].(string)
+
+	isVerified := false
+	if (statusOk && status == "completed") || (verifiedOk && verified == "completed") {
+		isVerified = true
+		logger.Info("KYC verified user", zap.String("userId", userId))
+	} else {
+		logger.Info("KYC not verified", zap.String("userId", userId), zap.String("status", status), zap.String("verified", verified))
+	}
+
+	// Cache the result
+	var cacheDuration time.Duration
+	if isVerified {
+		cacheDuration = 2 * time.Hour
+	} else {
+		cacheDuration = 5 * time.Minute
+	}
+
+	statusStr := "false"
+	if isVerified {
+		statusStr = "true"
+	}
+
+	err = m.Cache.Set(ctx, cacheKey, statusStr, cacheDuration)
+	if err != nil {
+		logger.Error("Error caching KYC status", zap.Error(err))
+		// Don't fail the request if caching fails
+	}
+
+	logger.Info("KYC status fetched and cached",
+		zap.String("userId", userId),
+		zap.Bool("kycStatus", isVerified),
+		zap.Duration("cacheDuration", cacheDuration))
+
+	return isVerified, nil
+}
+
+func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 	accessToken := c.Request.Header.Get("Authorization")
 	if accessToken == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
@@ -97,6 +207,20 @@ func AuthenticateUser(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
+
+	// Extract client IP address
+	clientIP := c.ClientIP()
+
+	// Verify KYC status with caching
+	verifiedKycStatus, err := m.verifyKYCStatus(c.Request.Context(), user.Id, clientIP, user.KycStatus)
+	if err != nil {
+		m.Logger.Error("Error verifying KYC status", zap.String("userId", user.Id), zap.Error(err))
+		// Continue with token KYC status on error
+		verifiedKycStatus = user.KycStatus
+	}
+
+	// Update user KYC status with verified value
+	user.KycStatus = verifiedKycStatus
 
 	ctx := context.WithValue(c.Request.Context(), "user", user)
 	c.Request = c.Request.WithContext(ctx)
