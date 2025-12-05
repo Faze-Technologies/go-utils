@@ -3,11 +3,14 @@ module github.com/Faze-Technologies/go-utils
 go 1.25.1
 
 require (
+	cloud.google.com/go/kms v1.23.2
 	cloud.google.com/go/pubsub v1.50.1
+	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/storage v1.57.0
 	github.com/aerospike/aerospike-client-go/v6 v6.16.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.27.0
+	github.com/go-resty/resty/v2 v2.17.0
 	github.com/goccy/go-json v0.10.5
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/jackc/pgx/v5 v5.7.6
@@ -30,11 +33,9 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
-	cloud.google.com/go/kms v1.23.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
 	cloud.google.com/go/pubsub/v2 v2.1.0 // indirect
-	cloud.google.com/go/secretmanager v1.16.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
