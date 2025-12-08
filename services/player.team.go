@@ -43,6 +43,7 @@ type Player struct {
 	Team           PlayerTeam `json:"team"`
 	PlayerQuality  string     `json:"playerQuality"`
 	PlayerGender   string     `json:"playerGender"`
+	PlayerId       string     `json:"playerId"`
 }
 
 type PlayerTeam struct {
