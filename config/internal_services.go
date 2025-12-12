@@ -70,6 +70,7 @@ var InternalServices = map[string]string{
 	"superteamUpgradeService":          "http://superteam-upgrade-service.superteam-upgrade-service.svc.cluster.local",
 	"editionUpgradeService":            "http://edition-upgrade-service.edition-upgrade-service.svc.cluster.local",
 	"superteamAlbumAdminService":       "http://superteam-album-admin-service.superteam-album-admin-service.svc.cluster.local",
+	"iapService":                       "http://iap-service.iap-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
