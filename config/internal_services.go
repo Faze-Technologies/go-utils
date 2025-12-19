@@ -25,6 +25,7 @@ var InternalServices = map[string]string{
 	"momentLeaderboardService":         "http://moment-leaderboard-service.moment-leaderboard-service.svc.cluster.local",
 	"milestoneService":                 "http://milestone-service.milestone-service.svc.cluster.local",
 	"miniGamesService":                 "http://mini-games-service.mini-games-service.svc.cluster.local",
+	"preRegMiniGamesService":           "http://prereg-mini-game.mini-games-service.svc.cluster.local",
 	"mintFactoryService":               "http://mint-factory-service.mint-factory-service.svc.cluster.local",
 	"momentMarketPlaceService":         "http://moment-mp-service.moment-service.svc.cluster.local/moment",
 	"momentMintingService":             "http://moment-minting-service.moment-service.svc.cluster.local/moment",
