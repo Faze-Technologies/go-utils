@@ -75,6 +75,7 @@ var InternalServices = map[string]string{
 	"iapService":                       "http://iap-service.iap-service.svc.cluster.local",
 	"iapAdminService":                  "http://iap-admin-service.iap-admin-service.svc.cluster.local",
 	"preregOnboardingService":          "http://prereg-onboarding-service.prereg-onboarding-service.svc.cluster.local",
+	"fcSelectService":                  "http://fc-select-service.fc-select-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
