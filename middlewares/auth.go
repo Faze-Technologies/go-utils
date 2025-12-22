@@ -110,7 +110,7 @@ func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip str
 	// Cache miss - call KYC API
 	logger.Debug("KYC status not in cache, calling API", zap.String("userId", userId))
 	baseURL := config.GetServiceURL("kycService")
-	url := fmt.Sprintf("%s/kyc/getKycInfo", baseURL)
+	url := fmt.Sprintf("%s/kyc/getKycStatusAndCountry", baseURL)
 
 	client := resty.New().
 		SetTimeout(10*time.Second).
