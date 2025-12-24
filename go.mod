@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/storage v1.57.0
 	github.com/aerospike/aerospike-client-go/v6 v6.16.0
+	github.com/aws/aws-sdk-go v1.55.8
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-resty/resty/v2 v2.17.0
@@ -69,6 +70,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
