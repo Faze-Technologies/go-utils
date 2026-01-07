@@ -159,7 +159,7 @@ func initGCSConfig(options GCSOptions, bucket string, isProd bool) (*GCSConfig, 
 	// Get production base URL from env if not provided
 	prodBaseURL := os.Getenv("GCS_PROD_BASE_URL")
 	if prodBaseURL == "" {
-		prodBaseURL = "produrl"
+		prodBaseURL = "http://media.fancraze.com"
 	}
 
 	return &GCSConfig{
