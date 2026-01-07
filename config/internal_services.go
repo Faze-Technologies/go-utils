@@ -21,6 +21,7 @@ var InternalServices = map[string]string{
 	"financeService":                   "http://finance-service.finance-service.svc.cluster.local",
 	"ipfsService":                      "https://ipfs-master-jzqvjpxgsa-el.a.run.app",
 	"kycService":                       "http://kyc-service.kyc-service.svc.cluster.local",
+	"superteamSegmentationService":     "http://superteam-segmentation-service.superteam-segmentation-service.svc.cluster.local",
 	"leaderboardService":               "http://leaderboard-service.leaderboard-service.svc.cluster.local",
 	"momentLeaderboardService":         "http://moment-leaderboard-service.moment-leaderboard-service.svc.cluster.local",
 	"milestoneService":                 "http://milestone-service.milestone-service.svc.cluster.local",
