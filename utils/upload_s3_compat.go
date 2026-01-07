@@ -316,7 +316,7 @@ func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*Up
 		if u.config.ProdBaseURL != "" {
 			fileURL = fmt.Sprintf("%s/%s", u.config.ProdBaseURL, fullPath)
 		} else {
-			fileURL = fmt.Sprintf("produrl/%s", fullPath)
+			fileURL = fmt.Sprintf("http://media.fancraze.com/%s", fullPath)
 		}
 	} else {
 		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", u.config.Bucket, fullPath)
