@@ -184,6 +184,9 @@ type SegmentsAPIResponse struct {
 }
 
 func (m *Middlewares) fetchUserSegments(ctx context.Context, userId string) []string {
+	if config.GetString("environment") != "dev" {
+		return []string{}
+	}
 	base := config.GetServiceURL("superteamSegmentationService")
 	url := fmt.Sprintf("%s/api/v1/segments/users/segmentsOfUser", base)
 	client := resty.New().
