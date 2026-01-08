@@ -176,47 +176,6 @@ func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip str
 	return isVerified, nil
 }
 
-type SegmentsAPIResponse struct {
-	Success   bool                   `json:"success"`
-	ErrorCode int                    `json:"error_code"`
-	Message   string                 `json:"message"`
-	Data      map[string]interface{} `json:"data"`
-}
-
-func (m *Middlewares) fetchUserSegments(ctx context.Context, userId string) []string {
-	if config.GetString("environment") != "dev" {
-		return []string{}
-	}
-	base := config.GetServiceURL("superteamSegmentationService")
-	url := fmt.Sprintf("%s/api/v1/segments/users/segmentsOfUser", base)
-	client := resty.New().
-		SetTimeout(2*time.Second).
-		SetHeader("Content-Type", "application/json")
-	var resp SegmentsAPIResponse
-	r, err := client.R().
-		SetContext(ctx).
-		SetResult(&resp).
-		SetQueryParam("userId", userId).
-		Get(url)
-	if err != nil || !r.IsSuccess() {
-		if err != nil {
-			m.Logger.Error("Segments fetch failed", zap.String("userId", userId), zap.Error(err))
-		} else {
-			m.Logger.Warn("Segments API non-success", zap.String("userId", userId), zap.Int("statusCode", r.StatusCode()))
-		}
-		return []string{}
-	}
-	data := resp.Data
-	segments := make([]string, 0)
-	if arr, ok := data["segments"].([]interface{}); ok {
-		for _, v := range arr {
-			if s, ok := v.(string); ok {
-				segments = append(segments, s)
-			}
-		}
-	}
-	return segments
-}
 
 func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 	accessToken := c.Request.Header.Get("Authorization")
@@ -269,7 +228,6 @@ func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 
 	// Update user KYC status with verified value
 	user.KycStatus = verifiedKycStatus
-	user.Segments = m.fetchUserSegments(c.Request.Context(), user.Id)
 
 	ctx := context.WithValue(c.Request.Context(), userContextKey, user)
 	c.Request = c.Request.WithContext(ctx)
