@@ -79,6 +79,7 @@ var InternalServices = map[string]string{
 	"fcSelectService":                  "http://fc-select-service.fc-select-service.svc.cluster.local",
 	"scoutService":                     "http://scout-service.scout-service.svc.cluster.local",
 	"superteamShopService":             "http://superteam-shop-service.superteam-shop-service.svc.cluster.local",
+	"cmMiscellaneousService":           "http://cm-miscellaneous-service.cm-miscellaneous-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
