@@ -544,24 +544,49 @@ func (cache Cache) GetMultipleKeyValues(ctx context.Context, keys []string) (map
 }
 
 // DeleteAllPossibleKeysByAString deletes all keys containing a specific string
-func (cache Cache) DeleteAllPossibleKeysByAString(ctx context.Context, matchString string) (bool, error) {
+func (cache Cache) DeleteAllPossibleKeysByAString(
+	ctx context.Context,
+	matchString string,
+) (bool, error) {
+
 	logger := logs.GetLogger()
 	pattern := "*" + matchString + "*"
-	keys, err := cache.rDB.Keys(ctx, pattern).Result()
-	if err != nil {
-		logger.Error("[DeleteAllPossibleKeysByAString] error in deleting cache", zap.String("matchString", matchString), zap.Error(err))
-		return false, err
+
+	var cursor uint64
+	deletedAny := false
+
+	for {
+		keys, nextCursor, err := cache.rDB.Scan(ctx, cursor, pattern, 500).Result()
+		if err != nil {
+			logger.Error(
+				"[DeleteAllPossibleKeysByAString] scan failed",
+				zap.String("matchString", matchString),
+				zap.Error(err),
+			)
+			return false, err
+		}
+
+		if len(keys) > 0 {
+			_, err := cache.rDB.Del(ctx, keys...).Result()
+			if err != nil {
+				logger.Error(
+					"[DeleteAllPossibleKeysByAString] delete failed",
+					zap.String("matchString", matchString),
+					zap.Strings("keys", keys),
+					zap.Error(err),
+				)
+				return false, err
+			}
+			deletedAny = true
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
 	}
 
-	if len(keys) == 0 {
-		return false, nil
-	}
-
-	_, err = cache.rDB.Del(ctx, keys...).Result()
-	if err != nil {
-		logger.Error("[DeleteAllPossibleKeysByAString] error in deleting cache", zap.String("matchString", matchString), zap.Error(err))
-	}
-	return err == nil, err
+	return deletedAny, nil
 }
 
 // Helper function
