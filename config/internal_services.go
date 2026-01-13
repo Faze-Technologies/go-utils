@@ -2,6 +2,7 @@ package config
 
 // InternalServices contains all internal service URLs.
 var InternalServices = map[string]string{
+	"ffmpegService":                    "http://ffmpeg-service.ffmpeg-service.svc.cluster.local",
 	"segmentationService":              "http://segmentation-service.segmentation-service.svc.cluster.local",
 	"analyticsService":                 "http://analytics-service.analytics-service.svc.cluster.local",
 	"albumService":                     "http://album-service.album-service.svc.cluster.local",
