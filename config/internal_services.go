@@ -62,6 +62,7 @@ var InternalServices = map[string]string{
 	"superteamUserService":             "http://superteam-user-service.superteam-user-service.svc.cluster.local",
 	"superteamPacksAdminService":       "http://superteam-packs-admin-service.superteam-packs-admin-service.svc.cluster.local",
 	"superteamPacksService":            "http://superteam-packs-service.superteam-packs-service.svc.cluster.local",
+	"superteamNotificationService":     "http://superteam-notification-service.superteam-notification-service.svc.cluster.local",
 	"cmBaseBlockchainService":          "http://cm-base-blockchain-service.cm-base-blockchain-service.svc.cluster.local",
 	"cmRelayerService":                 "http://cm-relayer-service.cm-relayer-service.svc.cluster.local/",
 	"cmKeyService":                     "http://cm-key-service.cm-key-service.svc.cluster.local",
