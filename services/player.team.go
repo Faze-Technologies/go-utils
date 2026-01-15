@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Faze-Technologies/go-utils/config"
 )
@@ -44,6 +45,7 @@ type Player struct {
 	PlayerQuality  string     `json:"playerQuality"`
 	PlayerGender   string     `json:"playerGender"`
 	PlayerId       string     `json:"playerId"`
+	Dob            time.Time  `json:"dob"`
 }
 
 type PlayerTeam struct {
