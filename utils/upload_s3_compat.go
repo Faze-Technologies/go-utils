@@ -101,6 +101,16 @@ func UploadFileToGCSWithConflictCheck(ctx context.Context, req *S3UploadRequest)
 	return defaultUploader.UploadFileWithConflictCheck(ctx, req)
 }
 
+// UploadFileToGCSWithOverwrite uploads a file using the default package-level uploader
+// Overwrites the file if it already exists (no timestamp added)
+// You must call InitDefaultUploader* first
+func UploadFileToGCSWithOverwrite(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+	if defaultUploader == nil {
+		return nil, fmt.Errorf("uploader not initialized: call InitDefaultUploader first")
+	}
+	return defaultUploader.UploadFileWithOverwrite(ctx, req)
+}
+
 // validateBucketName validates GCS/S3 bucket name according to naming rules
 func validateBucketName(bucket string) error {
 	if bucket == "" {
@@ -423,6 +433,101 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 	}
 
 	// Upload with full path - S3/GCS automatically creates folder structure
+	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(u.config.Bucket),
+		Key:         aws.String(fullPath),
+		Body:        bytes.NewReader(fileBytes),
+		ContentType: aws.String(contentType),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file: %v", err)
+	}
+
+	var fileURL string
+	if u.config.IsProd {
+		if u.config.ProdBaseURL != "" {
+			fileURL = fmt.Sprintf("%s/%s", u.config.ProdBaseURL, fullPath)
+		} else {
+			fileURL = fmt.Sprintf("http://media.fancraze.com/%s", fullPath)
+		}
+	} else {
+		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", u.config.Bucket, fullPath)
+	}
+
+	return &UploadResponse{
+		Success: true,
+		Message: "File uploaded successfully",
+		FileURL: fileURL,
+	}, nil
+}
+
+// UploadFileWithOverwrite uploads a file to GCS using S3-compatible API
+// Overwrites the file if it already exists (no timestamp added)
+// Returns URL based on environment:
+//   - IsProd = true:  ProdBaseURL/fullPath
+//   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
+func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+	// Validate request
+	if err := u.validate.Struct(req); err != nil {
+		return nil, fmt.Errorf("request validation failed: %v", err)
+	}
+
+	// Validate file and header are provided
+	if req.File == nil {
+		return nil, fmt.Errorf("file is required")
+	}
+	if req.Header == nil {
+		return nil, fmt.Errorf("file header is required")
+	}
+
+	sess, err := session.NewSession(&aws.Config{
+		Region:           aws.String("auto"),
+		Endpoint:         aws.String(u.config.Endpoint),
+		Credentials:      credentials.NewStaticCredentials(u.config.AccessKeyID, u.config.SecretAccessKey, ""),
+		S3ForcePathStyle: aws.Bool(true),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AWS session: %v", err)
+	}
+
+	svc := s3.New(sess)
+
+	// Clean the path and extract directory and base filename
+	cleanPath := strings.TrimPrefix(req.FileName, "/")
+	dir := filepath.Dir(cleanPath)
+	baseFileName := filepath.Base(cleanPath)
+
+	// Get file extension from the uploaded file
+	fileExt := filepath.Ext(req.Header.Filename)
+	if fileExt == "" {
+		fileExt = filepath.Ext(baseFileName)
+	}
+
+	// Remove extension from base filename if it exists
+	if ext := filepath.Ext(baseFileName); ext != "" {
+		baseFileName = strings.TrimSuffix(baseFileName, ext)
+	}
+
+	// Construct filename without timestamp (will overwrite if exists)
+	var fullPath string
+	fileName := fmt.Sprintf("%s%s", baseFileName, fileExt)
+	if dir != "" && dir != "." {
+		fullPath = fmt.Sprintf("%s/%s", dir, fileName)
+	} else {
+		fullPath = fileName
+	}
+
+	fileBytes, err := io.ReadAll(req.File)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %v", err)
+	}
+
+	contentType := req.Header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// Upload with full path - will overwrite if file already exists
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(u.config.Bucket),
 		Key:         aws.String(fullPath),
