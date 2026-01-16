@@ -46,6 +46,7 @@ type Player struct {
 	PlayerGender   string     `json:"playerGender"`
 	PlayerId       string     `json:"playerId"`
 	Dob            *time.Time `json:"dob,omitempty"`
+	Country        string     `json:"country"`
 }
 
 type PlayerTeam struct {
