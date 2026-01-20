@@ -49,6 +49,7 @@ type Player struct {
 	Country        string     `json:"country"`
 	Alive          bool       `json:"alive,omitempty"`
 	DateOfDeath    *time.Time `json:"dateOfDeath,omitempty"`
+	PlayerRating   *int       `json:"playerRating,omitempty"`
 }
 
 func (p *Player) UnmarshalJSON(data []byte) error {
