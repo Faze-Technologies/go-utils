@@ -349,6 +349,56 @@ func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*Up
 	}, nil
 }
 
+// UploadDataToBucket uploads raw data to a specified GCS bucket
+func (u *GCSUploader) UploadDataToBucket(ctx context.Context, bucketName string, destinationPath string, data []byte, contentType string, cacheControl string) (string, error) {
+	if bucketName == "" {
+		return "", fmt.Errorf("bucket name is required")
+	}
+	if destinationPath == "" {
+		return "", fmt.Errorf("destination path is required")
+	}
+
+	sess, err := session.NewSession(&aws.Config{
+		Region:           aws.String("auto"),
+		Endpoint:         aws.String(u.config.Endpoint),
+		Credentials:      credentials.NewStaticCredentials(u.config.AccessKeyID, u.config.SecretAccessKey, ""),
+		S3ForcePathStyle: aws.Bool(true),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create AWS session: %v", err)
+	}
+
+	svc := s3.New(sess)
+
+	// Clean the path
+	fullPath := strings.TrimPrefix(destinationPath, "/")
+
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	input := &s3.PutObjectInput{
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(fullPath),
+		Body:        bytes.NewReader(data),
+		ContentType: aws.String(contentType),
+	}
+
+	if cacheControl != "" {
+		input.CacheControl = aws.String(cacheControl)
+	}
+
+	_, err = svc.PutObjectWithContext(ctx, input)
+	if err != nil {
+		return "", fmt.Errorf("failed to upload data: %v", err)
+	}
+
+	// For custom buckets, return the direct GCS URL
+	fileURL := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, fullPath)
+
+	return fileURL, nil
+}
+
 // UploadFileWithConflictCheck uploads a file to GCS using S3-compatible API
 // Only adds timestamp to filename if a file with the same name already exists
 // Returns URL based on environment:
