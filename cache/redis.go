@@ -12,6 +12,9 @@ import (
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/goccy/go-json"
 	"github.com/redis/go-redis/v9"
+
+	// "github.com/redis/go-redis/v9/maintnotifications"
+	"github.com/redis/go-redis/v9/maintnotifications"
 	"go.uber.org/zap"
 )
 
@@ -21,20 +24,26 @@ type Cache struct {
 
 func NewCache() *Cache {
 	logger := logs.GetLogger()
+
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.GetString("redis.address"),
 		Password: config.GetString("redis.password"),
 		DB:       config.GetInt("redis.db"),
 		PoolSize: config.GetInt("redis.poolSize"),
+
+		MaintNotificationsConfig: &maintnotifications.Config{
+			Mode: maintnotifications.ModeDisabled,
+		},
 	})
+
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
 		logger.Panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
 	}
+
 	logger.Info("Connected to Redis", zap.String("PING", pong))
-	return &Cache{
-		rDB: client,
-	}
+
+	return &Cache{rDB: client}
 }
 
 func (cache Cache) SetJson(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
