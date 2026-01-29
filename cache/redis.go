@@ -224,6 +224,17 @@ func (cache Cache) RPush(ctx context.Context, key string, values ...interface{})
 	return result, nil
 }
 
+// LPush pushes values to the right of a list
+func (cache Cache) LPush(ctx context.Context, key string, values ...interface{}) (int64, error) {
+	logger := logs.GetLogger()
+	result, err := cache.rDB.LPush(ctx, key, values...).Result()
+	if err != nil {
+		logger.Error("error while pushing into list", zap.String("key", key), zap.Error(err))
+		return 0, err
+	}
+	return result, nil
+}
+
 // LPop pops a value from the left of a list
 func (cache Cache) LPop(ctx context.Context, key string) (string, error) {
 	logger := logs.GetLogger()
@@ -280,6 +291,23 @@ func (cache Cache) MultiPush(ctx context.Context, key string, values []interface
 	pipe := cache.rDB.Pipeline()
 	for _, value := range values {
 		pipe.RPush(ctx, key, value)
+	}
+	if expiration > 0 {
+		pipe.Expire(ctx, key, expiration)
+	}
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		logger.Error("error while multiPushing", zap.String("key", key), zap.Error(err))
+	}
+	return err
+}
+
+// MultiPush pushes multiple values to a list with expiration
+func (cache Cache) MultiLPush(ctx context.Context, key string, values []interface{}, expiration time.Duration) error {
+	logger := logs.GetLogger()
+	pipe := cache.rDB.Pipeline()
+	for _, value := range values {
+		pipe.LPush(ctx, key, value)
 	}
 	if expiration > 0 {
 		pipe.Expire(ctx, key, expiration)
