@@ -402,6 +402,14 @@ func (cache Cache) Unlock(ctx context.Context, key string) error {
 	return cache.rDB.Del(ctx, key).Err()
 }
 
+// DeleteMultiple deletes multiple keys
+func (cache Cache) DeleteMultiple(ctx context.Context, keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	return cache.rDB.Del(ctx, keys...).Err()
+}
+
 // KeyExists checks if a key exists
 func (cache Cache) KeyExists(ctx context.Context, key string) (bool, error) {
 	logger := logs.GetLogger()
