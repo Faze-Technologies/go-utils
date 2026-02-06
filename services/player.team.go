@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Faze-Technologies/go-utils/config"
 )
@@ -44,6 +45,30 @@ type Player struct {
 	PlayerQuality  string     `json:"playerQuality"`
 	PlayerGender   string     `json:"playerGender"`
 	PlayerId       string     `json:"playerId"`
+	Dob            *time.Time `json:"dob,omitempty"`
+	Country        string     `json:"country"`
+	Alive          bool       `json:"alive,omitempty"`
+	DateOfDeath    *time.Time `json:"dateOfDeath,omitempty"`
+	PlayerRating   *int       `json:"playerRating,omitempty"`
+}
+
+func (p *Player) UnmarshalJSON(data []byte) error {
+	type Alias Player
+	defaultAlive := true
+	p.Alive = defaultAlive
+	aux := &struct {
+		Alive *bool `json:"alive,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if aux.Alive != nil {
+		p.Alive = *aux.Alive
+	}
+	return nil
 }
 
 type PlayerTeam struct {

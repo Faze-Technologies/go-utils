@@ -12,6 +12,9 @@ import (
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/goccy/go-json"
 	"github.com/redis/go-redis/v9"
+
+	// "github.com/redis/go-redis/v9/maintnotifications"
+	"github.com/redis/go-redis/v9/maintnotifications"
 	"go.uber.org/zap"
 )
 
@@ -21,20 +24,26 @@ type Cache struct {
 
 func NewCache() *Cache {
 	logger := logs.GetLogger()
+
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.GetString("redis.address"),
 		Password: config.GetString("redis.password"),
 		DB:       config.GetInt("redis.db"),
 		PoolSize: config.GetInt("redis.poolSize"),
+
+		MaintNotificationsConfig: &maintnotifications.Config{
+			Mode: maintnotifications.ModeDisabled,
+		},
 	})
+
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
 		logger.Panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
 	}
+
 	logger.Info("Connected to Redis", zap.String("PING", pong))
-	return &Cache{
-		rDB: client,
-	}
+
+	return &Cache{rDB: client}
 }
 
 func (cache Cache) SetJson(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
@@ -215,6 +224,17 @@ func (cache Cache) RPush(ctx context.Context, key string, values ...interface{})
 	return result, nil
 }
 
+// LPush pushes values to the right of a list
+func (cache Cache) LPush(ctx context.Context, key string, values ...interface{}) (int64, error) {
+	logger := logs.GetLogger()
+	result, err := cache.rDB.LPush(ctx, key, values...).Result()
+	if err != nil {
+		logger.Error("error while pushing into list", zap.String("key", key), zap.Error(err))
+		return 0, err
+	}
+	return result, nil
+}
+
 // LPop pops a value from the left of a list
 func (cache Cache) LPop(ctx context.Context, key string) (string, error) {
 	logger := logs.GetLogger()
@@ -271,6 +291,23 @@ func (cache Cache) MultiPush(ctx context.Context, key string, values []interface
 	pipe := cache.rDB.Pipeline()
 	for _, value := range values {
 		pipe.RPush(ctx, key, value)
+	}
+	if expiration > 0 {
+		pipe.Expire(ctx, key, expiration)
+	}
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		logger.Error("error while multiPushing", zap.String("key", key), zap.Error(err))
+	}
+	return err
+}
+
+// MultiPush pushes multiple values to a list with expiration
+func (cache Cache) MultiLPush(ctx context.Context, key string, values []interface{}, expiration time.Duration) error {
+	logger := logs.GetLogger()
+	pipe := cache.rDB.Pipeline()
+	for _, value := range values {
+		pipe.LPush(ctx, key, value)
 	}
 	if expiration > 0 {
 		pipe.Expire(ctx, key, expiration)
@@ -552,24 +589,49 @@ func (cache Cache) GetMultipleKeyValues(ctx context.Context, keys []string) (map
 }
 
 // DeleteAllPossibleKeysByAString deletes all keys containing a specific string
-func (cache Cache) DeleteAllPossibleKeysByAString(ctx context.Context, matchString string) (bool, error) {
+func (cache Cache) DeleteAllPossibleKeysByAString(
+	ctx context.Context,
+	matchString string,
+) (bool, error) {
+
 	logger := logs.GetLogger()
 	pattern := "*" + matchString + "*"
-	keys, err := cache.rDB.Keys(ctx, pattern).Result()
-	if err != nil {
-		logger.Error("[DeleteAllPossibleKeysByAString] error in deleting cache", zap.String("matchString", matchString), zap.Error(err))
-		return false, err
+
+	var cursor uint64
+	deletedAny := false
+
+	for {
+		keys, nextCursor, err := cache.rDB.Scan(ctx, cursor, pattern, 500).Result()
+		if err != nil {
+			logger.Error(
+				"[DeleteAllPossibleKeysByAString] scan failed",
+				zap.String("matchString", matchString),
+				zap.Error(err),
+			)
+			return false, err
+		}
+
+		if len(keys) > 0 {
+			_, err := cache.rDB.Del(ctx, keys...).Result()
+			if err != nil {
+				logger.Error(
+					"[DeleteAllPossibleKeysByAString] delete failed",
+					zap.String("matchString", matchString),
+					zap.Strings("keys", keys),
+					zap.Error(err),
+				)
+				return false, err
+			}
+			deletedAny = true
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
 	}
 
-	if len(keys) == 0 {
-		return false, nil
-	}
-
-	_, err = cache.rDB.Del(ctx, keys...).Result()
-	if err != nil {
-		logger.Error("[DeleteAllPossibleKeysByAString] error in deleting cache", zap.String("matchString", matchString), zap.Error(err))
-	}
-	return err == nil, err
+	return deletedAny, nil
 }
 
 // Helper function
