@@ -8,6 +8,7 @@ import (
 	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,13 @@ func InitPostgresDB() *pgxpool.Pool {
 
 	logger.Info("Connecting to database", zap.String("db_url", dbURL))
 
-	conn, err := pgxpool.New(context.Background(), dbURL)
+	cfg, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		logger.Fatal("Error parsing database config", zap.Error(err))
+	}
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
+
+	conn, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		logger.Fatal("Error connecting to database", zap.Error(err))
 	}

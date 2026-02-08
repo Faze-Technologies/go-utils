@@ -11,6 +11,7 @@ import (
 	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/goccy/go-json"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 
 	// "github.com/redis/go-redis/v9/maintnotifications"
@@ -35,6 +36,10 @@ func NewCache() *Cache {
 			Mode: maintnotifications.ModeDisabled,
 		},
 	})
+
+	if err := redisotel.InstrumentTracing(client); err != nil {
+		logger.Warn("Failed to instrument Redis tracing", zap.Error(err))
+	}
 
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
