@@ -8,6 +8,7 @@ import (
 	"github.com/Faze-Technologies/go-utils/logs"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/v2/mongo/otelmongo"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +19,7 @@ func InitMongoDB() *mongo.Client {
 		url.PathEscape(config.GetString("mongodb.password")),
 		config.GetString("mongodb.host"))
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(dbURL).SetServerAPIOptions(serverAPI)
+	opts := options.Client().ApplyURI(dbURL).SetServerAPIOptions(serverAPI).SetMonitor(otelmongo.NewMonitor())
 
 	client, err := mongo.Connect(opts)
 	if err != nil {
