@@ -36,10 +36,11 @@ const (
 
 // ServiceError represents a standardized error that can be converted to HTTP or gRPC
 type ServiceError struct {
-	Code    ErrorCode              `json:"code"`
-	Message string                 `json:"message"`
-	Details map[string]interface{} `json:"details,omitempty"`
-	Cause   error                  `json:"-"` // Original error, not serialized
+	Code        ErrorCode              `json:"code"`
+	Message     string                 `json:"message"`
+	ErrorCode   int                    `json:"errorCode,omitempty"`
+	Details     map[string]interface{} `json:"details,omitempty"`
+	Cause       error                  `json:"-"` // Original error, not serialized
 }
 
 // Error implements the error interface
@@ -59,19 +60,29 @@ func (e *ServiceError) WithDetails(key string, value interface{}) *ServiceError 
 	return e
 }
 
+// WithErrorCode sets a numeric error code for frontend identification
+func (e *ServiceError) WithErrorCode(code int) *ServiceError {
+	e.ErrorCode = code
+	return e
+}
+
 // WithCause sets the underlying cause of the error
 func (e *ServiceError) WithCause(err error) *ServiceError {
 	e.Cause = err
 	return e
 }
 
-// New creates a new ServiceError
-func New(code ErrorCode, message string) *ServiceError {
-	return &ServiceError{
+// New creates a new ServiceError with an optional numeric error code
+func New(code ErrorCode, message string, errorCode ...int) *ServiceError {
+	e := &ServiceError{
 		Code:    code,
 		Message: message,
 		Details: make(map[string]interface{}),
 	}
+	if len(errorCode) > 0 {
+		e.ErrorCode = errorCode[0]
+	}
+	return e
 }
 
 // Newf creates a new ServiceError with formatted message
