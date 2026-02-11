@@ -129,8 +129,9 @@ type HTTPResponse struct {
 
 // HTTPErrorDetails represents error details in HTTP responses
 type HTTPErrorDetails struct {
-	Code    ErrorCode `json:"code"`
-	Message string    `json:"message"`
+	Code      ErrorCode `json:"code"`
+	Message   string    `json:"message"`
+	ErrorCode int       `json:"errorCode,omitempty"`
 }
 
 // ToHTTPResponse converts a ServiceError to HTTP response structure
@@ -138,8 +139,9 @@ func (e *ServiceError) ToHTTPResponse() *HTTPResponse {
 	response := &HTTPResponse{
 		Success: false,
 		Error: &HTTPErrorDetails{
-			Code:    e.Code,
-			Message: e.Message,
+			Code:      e.Code,
+			Message:   e.Message,
+			ErrorCode: e.ErrorCode,
 		},
 	}
 
