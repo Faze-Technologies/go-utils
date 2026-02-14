@@ -46,6 +46,7 @@ type UserDetails struct {
 	MfaMethod     string                 `json:"mfaMethod"`
 	Metadata      map[string]interface{} `json:"metadata"`
 	KycStatus     bool                   `json:"kycStatus"`
+	KycCountry    string                 `json:"kycCountry"`
 	CreatedAt     string                 `json:"createdAt"`
 	UpdatedAt     string                 `json:"updatedAt"`
 	Segments      []string               `json:"segments"`
@@ -90,22 +91,35 @@ type KYCAPIResponse struct {
 	Data      map[string]interface{} `json:"data"`
 }
 
-func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip string, tokenKycStatus bool) (bool, error) {
+func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip string, tokenKycStatus bool, tokenCountry string) (bool, string, error) {
 	logger := m.Logger
 
 	// If KYC is true in token, allow immediately
-	if tokenKycStatus {
-		return true, nil
+	if tokenKycStatus && tokenCountry {
+		return true, tokenCountry, nil
 	}
 
 	// Check Redis cache
-	cacheKey := fmt.Sprintf("kyc:status:%s", userId)
+	cacheKey := fmt.Sprintf("kyc:status_country:%s", userId)
 	cachedStatus, err := m.Cache.Get(ctx, cacheKey)
-
+	var cacheData map[string]interface{}
 	if err == nil && cachedStatus != "" {
 		// Cache hit - return cached value
 		logger.Debug("KYC status found in cache", zap.String("userId", userId), zap.String("status", cachedStatus))
-		return cachedStatus == "true", nil
+		err = json.Unmarshal([]byte(cachedStatus), &cacheData)
+		if err != nil {
+			logger.Error("Error unmarshalling cached KYC status", zap.Error(err))
+			return false, "", fmt.Errorf("unmarshal cached KYC status: %w", err)
+		}
+		kycStatus, ok := cacheData["kycStatus"].(bool)
+		if !ok {
+			return false, "", fmt.Errorf("cached KYC status is not a boolean")
+		}
+		country, ok := cacheData["kycCountry"].(string)
+		if !ok {
+			return false, "", fmt.Errorf("cached KYC country is not a string")
+		}
+		return kycStatus, country, nil
 	}
 
 	// Cache miss - call KYC API
@@ -128,22 +142,24 @@ func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip str
 
 	if err != nil {
 		logger.Error("Request to KYC service failed", zap.String("url", url), zap.String("userId", userId), zap.Error(err))
-		return false, fmt.Errorf("request failed: %w", err)
+		return false, "",fmt.Errorf("request failed: %w", err)
 	}
 
 	if !resp.IsSuccess() {
 		logger.Error("HTTP error from KYC service", zap.Int("statusCode", resp.StatusCode()), zap.String("body", resp.String()))
-		return false, fmt.Errorf("HTTP %d: %s", resp.StatusCode(), resp.String())
+		return false, "",fmt.Errorf("HTTP %d: %s", resp.StatusCode(), resp.String())
 	}
 
 	// Check if status or verified field is "completed"
 	kycData := kycResponse.Data
 	status, statusOk := kycData["status"].(string)
 	verified, verifiedOk := kycData["verified"].(string)
-
+	var kycCountry string
 	isVerified := false
 	if (statusOk && status == "completed") || (verifiedOk && verified == "completed") {
 		isVerified = true
+		kycedUser, _ := kycData["user"].(map[string]interface{})
+		kycCountry, _ = kycedUser["country"].(string)
 		logger.Info("KYC verified user", zap.String("userId", userId))
 	} else {
 		logger.Info("KYC not verified", zap.String("userId", userId), zap.String("status", status), zap.String("verified", verified))
@@ -157,12 +173,18 @@ func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip str
 		cacheDuration = 5 * time.Minute
 	}
 
-	statusStr := "false"
-	if isVerified {
-		statusStr = "true"
+	newCache := map[string]interface{}{
+		"kycStatus":  isVerified,
+		"kycCountry": kycCountry,
 	}
 
-	err = m.Cache.Set(ctx, cacheKey, statusStr, cacheDuration)
+	cacheStr, err := json.Marshal(newCache)
+	if err != nil {
+		logger.Error("Error marshalling KYC cache", zap.Error(err))
+		return false, "", fmt.Errorf("marshal KYC cache: %w", err)
+	}
+
+	err = m.Cache.Set(ctx, cacheKey, string(cacheStr), cacheDuration)
 	if err != nil {
 		logger.Error("Error caching KYC status", zap.Error(err))
 		// Don't fail the request if caching fails
@@ -173,9 +195,8 @@ func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip str
 		zap.Bool("kycStatus", isVerified),
 		zap.Duration("cacheDuration", cacheDuration))
 
-	return isVerified, nil
+	return isVerified, kycCountry, nil
 }
-
 
 func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 	accessToken := c.Request.Header.Get("Authorization")
@@ -219,7 +240,7 @@ func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 	clientIP := c.ClientIP()
 
 	// Verify KYC status with caching
-	verifiedKycStatus, err := m.verifyKYCStatus(c.Request.Context(), user.Id, clientIP, user.KycStatus)
+	verifiedKycStatus, country, err := m.verifyKYCStatus(c.Request.Context(), user.Id, clientIP, user.KycStatus, user.KycCountry)
 	if err != nil {
 		m.Logger.Error("Error verifying KYC status", zap.String("userId", user.Id), zap.Error(err))
 		// Continue with token KYC status on error
@@ -228,6 +249,7 @@ func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 
 	// Update user KYC status with verified value
 	user.KycStatus = verifiedKycStatus
+	user.KycCountry = country
 
 	ctx := context.WithValue(c.Request.Context(), userContextKey, user)
 	c.Request = c.Request.WithContext(ctx)
