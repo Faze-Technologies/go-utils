@@ -95,7 +95,7 @@ func (m *Middlewares) verifyKYCStatus(ctx context.Context, userId string, ip str
 	logger := m.Logger
 
 	// If KYC is true in token, allow immediately
-	if tokenKycStatus && tokenCountry {
+	if tokenKycStatus && tokenCountry != "" {
 		return true, tokenCountry, nil
 	}
 
