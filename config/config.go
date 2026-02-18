@@ -26,6 +26,10 @@ func GetInt(key string) int {
 	return viper.GetInt(key)
 }
 
+func GetFloat64(key string) float64 {
+	return viper.GetFloat64(key)
+}
+
 func GetMap(key string) map[string]interface{} {
 	return viper.GetStringMap(key)
 }
