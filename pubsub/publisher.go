@@ -41,3 +41,36 @@ func (ps *PubSub) Publish(ctx context.Context, topicID string, payload interface
 	}
 	return id, nil
 }
+
+func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, message *pubsub.Message) (string, error) {
+	logger := logs.GetLogger()
+
+	rawBytes, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error("failed to marshal payload", zap.String("topicID", topicID), zap.Error(err))
+		return "", fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	if message == nil {
+		message = &pubsub.Message{}
+	}
+	if _, ok := message.Attributes["queueName"]; ok {
+		outer := map[string]string{"data": string(rawBytes)}
+		if message.Data, err = json.Marshal(outer); err != nil {
+			logger.Error("failed to marshal outer payload", zap.String("topicID", topicID), zap.Error(err))
+			return "", fmt.Errorf("failed to marshal outer payload: %w", err)
+		}
+	} else {
+		message.Data = rawBytes
+	}
+
+	topic := ps.client.Topic(topicID)
+	result := topic.Publish(ctx, message)
+
+	id, err := result.Get(ctx)
+	if err != nil {
+		logger.Error("failed to publish message", zap.String("topicID", topicID), zap.Error(err))
+		return "", fmt.Errorf("failed to publish message: %w", err)
+	}
+	return id, nil
+}
