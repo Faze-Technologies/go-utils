@@ -65,6 +65,7 @@ func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, me
 	}
 
 	topic := ps.client.Topic(topicID)
+	topic.EnableMessageOrdering = message.OrderingKey != ""
 	result := topic.Publish(ctx, message)
 
 	id, err := result.Get(ctx)
