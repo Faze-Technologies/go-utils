@@ -3,29 +3,44 @@ package logs
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Faze-Technologies/go-utils/config"
 
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var logger *zap.Logger
 
+var ist = func() *time.Location {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		return time.FixedZone("IST", 5*60*60+30*60)
+	}
+	return loc
+}()
+
 func NewLogger() *zap.Logger {
 	environment := config.GetString("environment")
-	var err error
+
+	var cfg zap.Config
 	if environment == "prod" {
-		logger, err = zap.NewProduction()
+		cfg = zap.NewProductionConfig()
 	} else {
-		logger, err = zap.NewDevelopment()
+		cfg = zap.NewDevelopmentConfig()
 	}
+
+	cfg.EncoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(t.In(ist).Format("2006-01-02T15:04:05.000Z07:00"))
+	}
+
+	var err error
+	logger, err = cfg.Build(zap.AddCaller())
 	if err != nil {
 		panic(fmt.Errorf("unable to initialize utils\n %w", err))
 	}
-	defer logger.Sync()
-
-	logger = logger.WithOptions(zap.AddCaller(), zap.AddCallerSkip(0))
 	return logger
 }
 
