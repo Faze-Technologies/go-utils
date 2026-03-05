@@ -60,8 +60,8 @@ func GetAuthUser(c *gin.Context) (*UserDetails, *request.ServiceError) {
 	return &user, nil
 }
 
-func verifyTokenSignature(token string) (*jwt.Token, *request.ServiceError) {
-	logger := logs.GetLogger()
+func verifyTokenSignature(ctx context.Context, token string) (*jwt.Token, *request.ServiceError) {
+	logger := logs.WithContext(ctx)
 	publicKey := config.GetString("auth_public_key")
 	publicKeyBytes := []byte(publicKey)
 
@@ -205,7 +205,7 @@ func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 		return
 	}
 
-	token, sErr := verifyTokenSignature(accessToken)
+	token, sErr := verifyTokenSignature(c.Request.Context(), accessToken)
 	if sErr != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return

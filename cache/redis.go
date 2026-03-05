@@ -57,14 +57,14 @@ func (cache Cache) SetJson(ctx context.Context, key string, value interface{}, e
 		return err
 	}
 	result := cache.rDB.Set(ctx, key, bytes, expiration)
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	logger.Debug("SETTING IN REDIS", zap.String("key", key), zap.String("exp", expiration.String()))
 	return result.Err()
 }
 
 func (cache Cache) Set(ctx context.Context, key string, value string, expiration time.Duration) error {
 	result := cache.rDB.Set(ctx, key, value, expiration)
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	logger.Debug("SETTING IN REDIS",
 		zap.String("key", key),
 		zap.String("value", value),
@@ -81,7 +81,7 @@ func (cache Cache) Incr(ctx context.Context, key string, expiration time.Duratio
 	if count == 1 && expiration != 0 {
 		cache.rDB.Expire(ctx, key, expiration)
 	}
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	logger.Debug("INCREMENTING IN REDIS", zap.String("key", key), zap.Int64("count", count))
 	return count, nil
 }
@@ -100,7 +100,7 @@ func (cache Cache) Get(ctx context.Context, key string) (string, error) {
 	case result == "":
 		return "", fmt.Errorf(string(request.KeyNotFoundError))
 	}
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	logger.Debug("GETTING FROM REDIS", zap.String("key", key))
 	return result, nil
 }
@@ -111,7 +111,7 @@ func (cache Cache) GetJSON(ctx context.Context, key string, value interface{}) e
 	if err != nil {
 		return err
 	}
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	logger.Debug("GETTING FROM REDIS", zap.String("key", key))
 	return json.Unmarshal(storedBytes, &value)
 }
@@ -121,7 +121,7 @@ func (cache Cache) Delete(ctx context.Context, key string) error {
 }
 
 func (cache Cache) DeleteWithPattern(ctx context.Context, pattern string) error {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	logger.Debug("DELETING KEYS MATCHING PATTERN", zap.String("pattern", pattern))
 	result, err := cache.rDB.Keys(ctx, pattern).Result()
 	if err != nil {
@@ -134,7 +134,7 @@ func (cache Cache) DeleteWithPattern(ctx context.Context, pattern string) error 
 
 // HGet gets a field value from a hash
 func (cache Cache) HGet(ctx context.Context, hashName, key string) (string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.HGet(ctx, hashName, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return "", nil // Return empty string like Node.js version
@@ -148,7 +148,7 @@ func (cache Cache) HGet(ctx context.Context, hashName, key string) (string, erro
 
 // HSet sets a field value in a hash
 func (cache Cache) HSet(ctx context.Context, hashName, key string, value interface{}) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.HSet(ctx, hashName, key, value).Result()
 	if err != nil {
 		logger.Error("Error while setting hashKey", zap.String("hashName", hashName), zap.String("key", key), zap.Any("value", value), zap.Error(err))
@@ -159,7 +159,7 @@ func (cache Cache) HSet(ctx context.Context, hashName, key string, value interfa
 
 // HDel deletes a field from a hash
 func (cache Cache) HDel(ctx context.Context, hashName, key string) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.HDel(ctx, hashName, key).Result()
 	if err != nil {
 		logger.Error("Error while deleting hashKey", zap.String("hashName", hashName), zap.String("key", key), zap.Error(err))
@@ -170,7 +170,7 @@ func (cache Cache) HDel(ctx context.Context, hashName, key string) (int64, error
 
 // HGetAll gets all fields and values from a hash
 func (cache Cache) HGetAll(ctx context.Context, hashName string) (map[string]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.HGetAll(ctx, hashName).Result()
 	if err != nil {
 		logger.Error("error in HGetAll", zap.String("hashName", hashName), zap.Error(err))
@@ -181,7 +181,7 @@ func (cache Cache) HGetAll(ctx context.Context, hashName string) (map[string]str
 
 // HKeys gets all field names from a hash
 func (cache Cache) HKeys(ctx context.Context, hashName string) ([]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.HKeys(ctx, hashName).Result()
 	if err != nil {
 		logger.Error("error in getting hashKeys", zap.String("hashName", hashName), zap.Error(err))
@@ -220,7 +220,7 @@ func (cache Cache) SetWholeHashMap(ctx context.Context, hashName string, values 
 
 // RPush pushes values to the right of a list
 func (cache Cache) RPush(ctx context.Context, key string, values ...interface{}) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.RPush(ctx, key, values...).Result()
 	if err != nil {
 		logger.Error("error while pushing into list", zap.String("key", key), zap.Error(err))
@@ -231,7 +231,7 @@ func (cache Cache) RPush(ctx context.Context, key string, values ...interface{})
 
 // LPush pushes values to the right of a list
 func (cache Cache) LPush(ctx context.Context, key string, values ...interface{}) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.LPush(ctx, key, values...).Result()
 	if err != nil {
 		logger.Error("error while pushing into list", zap.String("key", key), zap.Error(err))
@@ -242,7 +242,7 @@ func (cache Cache) LPush(ctx context.Context, key string, values ...interface{})
 
 // LPop pops a value from the left of a list
 func (cache Cache) LPop(ctx context.Context, key string) (string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.LPop(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return "", nil // Return empty string when list is empty
@@ -256,7 +256,7 @@ func (cache Cache) LPop(ctx context.Context, key string) (string, error) {
 
 // RPop pops a value from the right of a list
 func (cache Cache) RPop(ctx context.Context, key string) (string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.RPop(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return "", nil // Return empty string when list is empty
@@ -270,7 +270,7 @@ func (cache Cache) RPop(ctx context.Context, key string) (string, error) {
 
 // LRange gets a range of values from a list
 func (cache Cache) LRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.LRange(ctx, key, start, stop).Result()
 	if err != nil {
 		logger.Error("error while fetching lrange", zap.String("key", key), zap.Error(err))
@@ -281,7 +281,7 @@ func (cache Cache) LRange(ctx context.Context, key string, start, stop int64) ([
 
 // GetList gets all values from a list
 func (cache Cache) GetList(ctx context.Context, key string) ([]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.LRange(ctx, key, 0, -1).Result()
 	if err != nil {
 		logger.Error("error while getting list", zap.String("key", key), zap.Error(err))
@@ -292,7 +292,7 @@ func (cache Cache) GetList(ctx context.Context, key string) ([]string, error) {
 
 // MultiPush pushes multiple values to a list with expiration
 func (cache Cache) MultiPush(ctx context.Context, key string, values []interface{}, expiration time.Duration) error {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	pipe := cache.rDB.Pipeline()
 	for _, value := range values {
 		pipe.RPush(ctx, key, value)
@@ -309,7 +309,7 @@ func (cache Cache) MultiPush(ctx context.Context, key string, values []interface
 
 // MultiPush pushes multiple values to a list with expiration
 func (cache Cache) MultiLPush(ctx context.Context, key string, values []interface{}, expiration time.Duration) error {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	pipe := cache.rDB.Pipeline()
 	for _, value := range values {
 		pipe.LPush(ctx, key, value)
@@ -326,7 +326,7 @@ func (cache Cache) MultiLPush(ctx context.Context, key string, values []interfac
 
 // ListRPOP pops multiple values from the right of a list
 func (cache Cache) ListRPOP(ctx context.Context, key string, count int64) ([]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.RPopCount(ctx, key, int(count)).Result()
 	if err != nil {
 		logger.Error("error while rpop", zap.String("key", key), zap.Error(err))
@@ -344,7 +344,7 @@ func (cache Cache) SAdd(ctx context.Context, key string, members ...interface{})
 
 // SMembers gets all members of a set
 func (cache Cache) SMembers(ctx context.Context, key string) ([]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SMembers(ctx, key).Result()
 	if err != nil {
 		logger.Error("-- error inside getSetMembers", zap.String("key", key), zap.Error(err))
@@ -355,7 +355,7 @@ func (cache Cache) SMembers(ctx context.Context, key string) ([]string, error) {
 
 // SCard gets the cardinality (number of members) of a set
 func (cache Cache) SCard(ctx context.Context, key string) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SCard(ctx, key).Result()
 	if err != nil {
 		logger.Error("-- error inside getSetCardinality", zap.String("key", key), zap.Error(err))
@@ -366,7 +366,7 @@ func (cache Cache) SCard(ctx context.Context, key string) (int64, error) {
 
 // SPop removes and returns random members from a set
 func (cache Cache) SPop(ctx context.Context, key string, count int64) ([]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SPopN(ctx, key, count).Result()
 	if err != nil {
 		logger.Error("-- error inside popAndReturnFromSet", zap.String("key", key), zap.Error(err))
@@ -377,7 +377,7 @@ func (cache Cache) SPop(ctx context.Context, key string, count int64) ([]string,
 
 // SIsMember checks if a value is a member of a set
 func (cache Cache) SIsMember(ctx context.Context, key string, member interface{}) (bool, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SIsMember(ctx, key, member).Result()
 	if err != nil {
 		logger.Error("-- error inside isSetMember", zap.String("key", key), zap.Error(err))
@@ -388,7 +388,7 @@ func (cache Cache) SIsMember(ctx context.Context, key string, member interface{}
 
 // SRem removes members from a set
 func (cache Cache) SRem(ctx context.Context, key string, members ...interface{}) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SRem(ctx, key, members...).Result()
 	if err != nil {
 		logger.Error("error while removing set member", zap.String("key", key), zap.Error(err))
@@ -399,7 +399,7 @@ func (cache Cache) SRem(ctx context.Context, key string, members ...interface{})
 
 // UpsertToSet adds multiple members to a set
 func (cache Cache) UpsertToSet(ctx context.Context, key string, members []interface{}) error {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	pipe := cache.rDB.Pipeline()
 	for _, member := range members {
 		pipe.SAdd(ctx, key, member)
@@ -413,7 +413,7 @@ func (cache Cache) UpsertToSet(ctx context.Context, key string, members []interf
 
 // AddSetMembers adds members to a set with expiration
 func (cache Cache) AddSetMembers(ctx context.Context, key string, members []interface{}, expiration time.Duration) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	pipe := cache.rDB.Pipeline()
 	addCmd := pipe.SAdd(ctx, key, members...)
 	if expiration > 0 {
@@ -454,7 +454,7 @@ func (cache Cache) DeleteMultiple(ctx context.Context, keys ...string) error {
 
 // KeyExists checks if a key exists
 func (cache Cache) KeyExists(ctx context.Context, key string) (bool, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	count, err := cache.rDB.Exists(ctx, key).Result()
 	if err != nil {
 		logger.Error("error while checking for key", zap.String("key", key), zap.Error(err))
@@ -475,7 +475,7 @@ func (cache Cache) MultiSet(ctx context.Context, pairs map[string]interface{}, e
 
 // IncrBy increments a key by a specific amount with optional expiration
 func (cache Cache) IncrBy(ctx context.Context, key string, amount int64, expiration time.Duration) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	value, err := cache.rDB.IncrBy(ctx, key, amount).Result()
 	if err != nil {
 		logger.Error("error while incrementing in redis", zap.String("key", key), zap.Error(err))
@@ -489,7 +489,7 @@ func (cache Cache) IncrBy(ctx context.Context, key string, amount int64, expirat
 
 // Decr decrements a key with optional expiration
 func (cache Cache) Decr(ctx context.Context, key string, expiration time.Duration) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	value, err := cache.rDB.Decr(ctx, key).Result()
 	if err != nil {
 		logger.Error("error while decrementing in redis", zap.String("key", key), zap.Error(err))
@@ -503,7 +503,7 @@ func (cache Cache) Decr(ctx context.Context, key string, expiration time.Duratio
 
 // IncrementWithExpire increments a key and sets expiration only if it's a new key
 func (cache Cache) IncrementWithExpire(ctx context.Context, key string, expiration time.Duration) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	value, err := cache.rDB.Incr(ctx, key).Result()
 	if err != nil {
 		logger.Error("error while incrementing in redis", zap.String("key", key), zap.Error(err))
@@ -529,7 +529,7 @@ func (cache Cache) PatternReading(ctx context.Context, pattern string) ([]string
 
 // PatternDeletion deletes all keys matching a pattern with optional filter
 func (cache Cache) PatternDeletion(ctx context.Context, pattern string, filter string) error {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	iter := cache.rDB.Scan(ctx, 0, pattern, 0).Iterator()
 	pipe := cache.rDB.Pipeline()
 
@@ -554,7 +554,7 @@ func (cache Cache) PatternDeletion(ctx context.Context, pattern string, filter s
 
 // GetMultiKeys gets values for multiple keys
 func (cache Cache) GetMultiKeys(ctx context.Context, keys []string) (map[string]string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	if len(keys) == 0 {
 		return map[string]string{}, nil
 	}
@@ -576,7 +576,7 @@ func (cache Cache) GetMultiKeys(ctx context.Context, keys []string) (map[string]
 
 // DelMultiKeys deletes multiple keys
 func (cache Cache) DelMultiKeys(ctx context.Context, keys []string) (int64, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	if len(keys) == 0 {
 		return 0, nil
 	}
@@ -599,7 +599,7 @@ func (cache Cache) DeleteAllPossibleKeysByAString(
 	matchString string,
 ) (bool, error) {
 
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	pattern := "*" + matchString + "*"
 
 	var cursor uint64
@@ -648,7 +648,7 @@ func contains(s, substr string) bool {
 
 // SetTTL sets expiration for an existing key
 func (cache Cache) SetTTL(ctx context.Context, key string, expiration time.Duration) (bool, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.Expire(ctx, key, expiration).Result()
 	if err != nil {
 		logger.Error("Error while setting expiration for key", zap.String("key", key), zap.Error(err))
@@ -659,7 +659,7 @@ func (cache Cache) SetTTL(ctx context.Context, key string, expiration time.Durat
 
 // TTLMS gets the time to live in milliseconds
 func (cache Cache) TTLMS(ctx context.Context, key string) (time.Duration, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.PTTL(ctx, key).Result()
 	if err != nil {
 		logger.Error("error while pttl fetch", zap.String("key", key), zap.Error(err))

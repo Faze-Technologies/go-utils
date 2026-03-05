@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Faze-Technologies/go-utils/logs"
 	"github.com/Faze-Technologies/go-utils/request"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -23,7 +24,7 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 		c.Next()
 
 		cost := time.Since(start)
-		logger.Info(path,
+		logs.WithContext(c.Request.Context()).Info(path,
 			zap.Int("status", c.Writer.Status()),
 			zap.String("method", c.Request.Method),
 			zap.String("path", path),

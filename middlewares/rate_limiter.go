@@ -23,6 +23,7 @@ func RateLimiter(cache *cache.Cache, redisKey string) gin.HandlerFunc {
 	logger.Info("Rate limiter initialized", zap.Int("whitelisted_origins", len(whitelistedOrigins)))
 
 	return func(c *gin.Context) {
+		logger := logs.WithContext(c.Request.Context())
 		origin := c.GetHeader("Origin")
 		if whitelistedOrigins[origin] {
 			logger.Debug("Rate limit skipped for whitelisted origin",
