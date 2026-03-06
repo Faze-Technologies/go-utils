@@ -6,13 +6,21 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/pubsub"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/Faze-Technologies/go-utils/logs"
 	"go.uber.org/zap"
 )
 
+// injectTraceContext injects the current OTel trace context into PubSub message
+// attributes so the subscriber can extract it and continue the trace.
+func injectTraceContext(ctx context.Context, attrs map[string]string) {
+	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(attrs))
+}
+
 func (ps *PubSub) Publish(ctx context.Context, topicID string, payload interface{}, attrs map[string]string) (string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 
 	rawBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -31,6 +39,9 @@ func (ps *PubSub) Publish(ctx context.Context, topicID string, payload interface
 		finalData = rawBytes
 	}
 
+	// Propagate trace context so subscriber spans appear as children of this trace
+	injectTraceContext(ctx, attrs)
+
 	topic := ps.client.Topic(topicID)
 	result := topic.Publish(ctx, &pubsub.Message{Data: finalData, Attributes: attrs})
 
@@ -43,7 +54,7 @@ func (ps *PubSub) Publish(ctx context.Context, topicID string, payload interface
 }
 
 func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, message *pubsub.Message) (string, error) {
-	logger := logs.GetLogger()
+	logger := logs.WithContext(ctx)
 
 	rawBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -54,6 +65,9 @@ func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, me
 	if message == nil {
 		message = &pubsub.Message{}
 	}
+	if message.Attributes == nil {
+		message.Attributes = make(map[string]string)
+	}
 	if _, ok := message.Attributes["queueName"]; ok {
 		outer := map[string]string{"data": string(rawBytes)}
 		if message.Data, err = json.Marshal(outer); err != nil {
@@ -63,6 +77,9 @@ func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, me
 	} else {
 		message.Data = rawBytes
 	}
+
+	// Propagate trace context so subscriber spans appear as children of this trace
+	injectTraceContext(ctx, message.Attributes)
 
 	topic := ps.client.Topic(topicID)
 	topic.EnableMessageOrdering = message.OrderingKey != ""
