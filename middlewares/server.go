@@ -30,7 +30,14 @@ type responseBodyWriter struct {
 }
 
 func (r *responseBodyWriter) Write(b []byte) (int, error) {
-	r.body.Write(b)
+	if r.body.Len() < maxBodyLogSize {
+		remaining := maxBodyLogSize - r.body.Len()
+		if len(b) <= remaining {
+			r.body.Write(b)
+		} else {
+			r.body.Write(b[:remaining])
+		}
+	}
 	return r.ResponseWriter.Write(b)
 }
 
@@ -38,6 +45,18 @@ var sensitiveKeys = map[string]bool{
 	"password": true, "token": true, "otp": true,
 	"cardNumber": true, "cvv": true, "privateKey": true,
 	"secret": true, "authorization": true,
+}
+
+// resolveInternalUserID extracts userId from headers/query for internal service-to-service calls.
+// c.GetHeader is case-insensitive for hyphenated headers (user-id == User-Id == USER-ID),
+// but "userId" has a different canonical form so it needs its own check.
+func resolveInternalUserID(c *gin.Context) string {
+	for _, h := range []string{"user-id", "userId"} {
+		if v := c.GetHeader(h); v != "" {
+			return v
+		}
+	}
+	return c.Query("userId")
 }
 
 // redactBody parses JSON body and masks sensitive fields before attaching to spans/logs.
@@ -92,41 +111,49 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 			attribute.String("http.user_agent", c.Request.UserAgent()),
 		)
 
-		// User identity — set after auth middleware runs, so it's available here.
-		// In SigNoz: filter traces by user.id to debug a specific user's journey.
+		// Resolve user once — used for both span attributes and structured log
+		var userID string
 		if user, err := GetAuthUser(c); err == nil {
+			userID = user.Id
 			span.SetAttributes(
 				attribute.String("user.id", user.Id),
 				attribute.String("user.email", user.Email),
+				attribute.String("user.mobile", user.Mobile),
 				attribute.Bool("user.kyc", user.KycStatus),
 				attribute.String("user.kyc_country", user.KycCountry),
 			)
+		} else if id := resolveInternalUserID(c); id != "" {
+			userID = id
+			span.SetAttributes(attribute.String("user.id", id))
 		}
 
-		// App/client context — lets you filter traces by app version or platform.
-		// Useful when a bug is version-specific ("only v2.3.1 users are failing").
-		if appVersion := c.GetHeader("appversion"); appVersion != "" {
-			span.SetAttributes(attribute.String("app.version", appVersion))
+		if v := c.GetHeader("appversion"); v != "" {
+			span.SetAttributes(attribute.String("app.version", v))
 		}
-		if appID := c.GetHeader("appid"); appID != "" {
-			span.SetAttributes(attribute.String("app.id", appID))
+		if v := c.GetHeader("appid"); v != "" {
+			span.SetAttributes(attribute.String("app.id", v))
 		}
-		if platform := c.GetHeader("source"); platform != "" {
-			span.SetAttributes(attribute.String("app.platform", platform))
+		if v := c.GetHeader("source"); v != "" {
+			span.SetAttributes(attribute.String("app.platform", v))
 		}
 
-		// ── Span event (payload snapshot) ──────────────────────────────────────
-		// Stored as a timestamped event on the span — visible in SigNoz trace timeline.
-		// Separate from attributes so large payloads don't bloat the span metadata.
-		eventAttrs := []attribute.KeyValue{}
+		// Span event: request body, query, path params, response body on errors
+		var eventAttrs []attribute.KeyValue
 		if len(bodyBytes) > 0 {
 			eventAttrs = append(eventAttrs, attribute.String("http.request.body", redactBody(bodyBytes)))
 		}
 		if query != "" {
 			eventAttrs = append(eventAttrs, attribute.String("http.request.query", query))
 		}
-		// On 4xx/5xx attach the response body — this is the error message we sent back.
-		// e.g. {"error": "pack not found", "code": "PACK_NOT_FOUND"}
+		if params := c.Params; len(params) > 0 {
+			paramMap := make(map[string]string, len(params))
+			for _, p := range params {
+				paramMap[p.Key] = p.Value
+			}
+			if b, err := json.Marshal(paramMap); err == nil {
+				eventAttrs = append(eventAttrs, attribute.String("http.request.params", string(b)))
+			}
+		}
 		if statusCode >= 400 {
 			if respBody := respWriter.body.Bytes(); len(respBody) > 0 {
 				eventAttrs = append(eventAttrs, attribute.String("http.response.body", string(respBody)))
@@ -136,12 +163,10 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 			span.AddEvent("request.payload", trace.WithAttributes(eventAttrs...))
 		}
 
-		// Mark 5xx as span error so SigNoz highlights it in red on the trace list.
 		if statusCode >= 500 {
 			span.SetStatus(codes.Error, http.StatusText(statusCode))
 		}
 
-		// ── Structured log (appears in SigNoz Logs, correlated to trace via trace_id) ──
 		logFields := []zap.Field{
 			zap.Int("status", statusCode),
 			zap.String("method", c.Request.Method),
@@ -152,8 +177,8 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 			zap.String("errors", c.Errors.ByType(gin.ErrorTypePrivate).String()),
 			zap.Duration("cost", cost),
 		}
-		if user, err := GetAuthUser(c); err == nil {
-			logFields = append(logFields, zap.String("userId", user.Id))
+		if userID != "" {
+			logFields = append(logFields, zap.String("userId", userID))
 		}
 		logs.WithContext(c.Request.Context()).Info(path, logFields...)
 	}
