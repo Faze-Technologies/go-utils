@@ -7,7 +7,10 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/Faze-Technologies/go-utils/logs"
 	"go.uber.org/zap"
@@ -20,11 +23,22 @@ func injectTraceContext(ctx context.Context, attrs map[string]string) {
 }
 
 func (ps *PubSub) Publish(ctx context.Context, topicID string, payload interface{}, attrs map[string]string) (string, error) {
-	logger := logs.WithContext(ctx)
+	tracer := otel.Tracer("pubsub")
+	spanCtx, span := tracer.Start(ctx, topicID,
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "pubsub"),
+			attribute.String("messaging.destination", topicID),
+		),
+	)
+	defer span.End()
+
+	logger := logs.WithContext(spanCtx)
 
 	rawBytes, err := json.Marshal(payload)
 	if err != nil {
 		logger.Error("failed to marshal payload", zap.String("topicID", topicID), zap.Error(err))
+		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
@@ -33,32 +47,46 @@ func (ps *PubSub) Publish(ctx context.Context, topicID string, payload interface
 		outer := map[string]string{"data": string(rawBytes)}
 		if finalData, err = json.Marshal(outer); err != nil {
 			logger.Error("failed to marshal outer payload", zap.String("topicID", topicID), zap.Error(err))
+			span.SetStatus(codes.Error, err.Error())
 			return "", fmt.Errorf("failed to marshal outer payload: %w", err)
 		}
 	} else {
 		finalData = rawBytes
 	}
 
-	// Propagate trace context so subscriber spans appear as children of this trace
-	injectTraceContext(ctx, attrs)
+	// Inject span context (not parent ctx) so subscriber links to this producer span
+	injectTraceContext(spanCtx, attrs)
 
 	topic := ps.client.Topic(topicID)
-	result := topic.Publish(ctx, &pubsub.Message{Data: finalData, Attributes: attrs})
+	result := topic.Publish(spanCtx, &pubsub.Message{Data: finalData, Attributes: attrs})
 
-	id, err := result.Get(ctx)
+	id, err := result.Get(spanCtx)
 	if err != nil {
 		logger.Error("failed to publish message", zap.String("topicID", topicID), zap.Error(err))
+		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("failed to publish message: %w", err)
 	}
+	span.SetAttributes(attribute.String("messaging.message_id", id))
 	return id, nil
 }
 
 func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, message *pubsub.Message) (string, error) {
-	logger := logs.WithContext(ctx)
+	tracer := otel.Tracer("pubsub")
+	spanCtx, span := tracer.Start(ctx, topicID,
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "pubsub"),
+			attribute.String("messaging.destination", topicID),
+		),
+	)
+	defer span.End()
+
+	logger := logs.WithContext(spanCtx)
 
 	rawBytes, err := json.Marshal(payload)
 	if err != nil {
 		logger.Error("failed to marshal payload", zap.String("topicID", topicID), zap.Error(err))
+		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
@@ -72,23 +100,26 @@ func (ps *PubSub) PublishV2(ctx context.Context, topicID string, payload any, me
 		outer := map[string]string{"data": string(rawBytes)}
 		if message.Data, err = json.Marshal(outer); err != nil {
 			logger.Error("failed to marshal outer payload", zap.String("topicID", topicID), zap.Error(err))
+			span.SetStatus(codes.Error, err.Error())
 			return "", fmt.Errorf("failed to marshal outer payload: %w", err)
 		}
 	} else {
 		message.Data = rawBytes
 	}
 
-	// Propagate trace context so subscriber spans appear as children of this trace
-	injectTraceContext(ctx, message.Attributes)
+	// Inject span context (not parent ctx) so subscriber links to this producer span
+	injectTraceContext(spanCtx, message.Attributes)
 
 	topic := ps.client.Topic(topicID)
 	topic.EnableMessageOrdering = message.OrderingKey != ""
-	result := topic.Publish(ctx, message)
+	result := topic.Publish(spanCtx, message)
 
-	id, err := result.Get(ctx)
+	id, err := result.Get(spanCtx)
 	if err != nil {
 		logger.Error("failed to publish message", zap.String("topicID", topicID), zap.Error(err))
+		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("failed to publish message: %w", err)
 	}
+	span.SetAttributes(attribute.String("messaging.message_id", id))
 	return id, nil
 }
