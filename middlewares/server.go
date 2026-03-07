@@ -21,7 +21,8 @@ import (
 	"go.uber.org/zap"
 )
 
-const maxBodyLogSize = 10 * 1024 // 10 KB
+const maxBodyLogSize = 100 * 1024 // 100 KB
+const largeBodyWarnSize = 10 * 1024  // warn if body exceeds 10 KB
 
 // responseBodyWriter wraps gin.ResponseWriter to capture the response body.
 type responseBodyWriter struct {
@@ -87,6 +88,13 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 		if c.Request.Body != nil && !strings.Contains(contentType, "multipart") {
 			bodyBytes, _ = io.ReadAll(io.LimitReader(c.Request.Body, maxBodyLogSize))
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			if len(bodyBytes) > largeBodyWarnSize {
+				logger.Warn("large request body",
+					zap.String("path", c.Request.URL.Path),
+					zap.String("method", c.Request.Method),
+					zap.Int("body_size_bytes", len(bodyBytes)),
+				)
+			}
 		}
 
 		// Wrap the response writer to capture the response body
