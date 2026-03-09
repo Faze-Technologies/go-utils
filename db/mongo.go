@@ -19,7 +19,7 @@ func InitMongoDB() *mongo.Client {
 		url.PathEscape(config.GetString("mongodb.password")),
 		config.GetString("mongodb.host"))
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(dbURL).SetServerAPIOptions(serverAPI).SetMonitor(otelmongo.NewMonitor())
+	opts := options.Client().ApplyURI(dbURL).SetServerAPIOptions(serverAPI).SetMonitor(otelmongo.NewMonitor(otelmongo.WithCommandAttributeDisabled(false)))
 
 	client, err := mongo.Connect(opts)
 	if err != nil {
