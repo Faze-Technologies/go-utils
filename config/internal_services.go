@@ -86,6 +86,8 @@ var InternalServices = map[string]string{
 	"paymentGatewayService":              "http://payment-gateway-service.payment-gateway-service.svc.cluster.local",
 	"giftCardsService":                   "http://gift-cards-service.gift-cards-service.svc.cluster.local",
 	"superteamTransactionHistoryService": "http://superteam-transaction-history-service.superteam-transaction-history-service.svc.cluster.local",
+	"superteamIpoService":                "http://superteam-ipo-service.superteam-ipo-service.svc.cluster.local",
+	"superteamIpoAdminService":           "http://superteam-ipo-admin-service.superteam-ipo-admin-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
