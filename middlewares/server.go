@@ -90,6 +90,16 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 		cost := time.Since(start)
 
+		// Resolve client IP from X-Forwarded-For header (first IP is the real client),
+		// falling back to Gin's ClientIP() which depends on SetTrustedProxies config.
+		clientIP := ""
+		if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
+			clientIP = strings.TrimSpace(strings.Split(xff, ",")[0])
+		}
+		if clientIP == "" {
+			clientIP = c.ClientIP()
+		}
+
 		span := trace.SpanFromContext(c.Request.Context())
 
 		// ── Span attributes (searchable/filterable in SigNoz) ──────────────────
@@ -99,7 +109,7 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 			attribute.String("http.method", c.Request.Method),
 			attribute.String("http.path", path),
 			attribute.Int("http.status_code", statusCode),
-			attribute.String("http.client_ip", c.ClientIP()),
+			attribute.String("http.client_ip", clientIP),
 			attribute.String("http.user_agent", c.Request.UserAgent()),
 		)
 
@@ -164,7 +174,7 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 			zap.String("method", c.Request.Method),
 			zap.String("path", path),
 			zap.String("query", query),
-			zap.String("ip", c.ClientIP()),
+			zap.String("ip", clientIP),
 			zap.String("user-agent", c.Request.UserAgent()),
 			zap.String("errors", c.Errors.ByType(gin.ErrorTypePrivate).String()),
 			zap.Duration("cost", cost),
