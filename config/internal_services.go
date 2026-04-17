@@ -88,6 +88,9 @@ var InternalServices = map[string]string{
 	"superteamTransactionHistoryService": "http://superteam-transaction-history-service.superteam-transaction-history-service.svc.cluster.local",
 	"superteamIpoService":                "http://superteam-ipo-service.superteam-ipo-service.svc.cluster.local",
 	"superteamIpoAdminService":           "http://superteam-ipo-admin-service.superteam-ipo-admin-service.svc.cluster.local",
+	"goMomentService":                    "http://go-moment-service.go-moment-service.svc.cluster.local",
+	"clawService":                        "http://claw-service.claw-service.svc.cluster.local",
+	"boxService":                         "http://box-service.box-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
