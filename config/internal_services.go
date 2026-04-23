@@ -91,6 +91,8 @@ var InternalServices = map[string]string{
 	"goMomentService":                    "http://go-moment-service.go-moment-service.svc.cluster.local",
 	"clawService":                        "http://claw-service.claw-service.svc.cluster.local",
 	"boxService":                         "http://box-service.box-service.svc.cluster.local",
+	"listingService":                     "http://listing-service.listing-service.svc.cluster.local",
+	"salesHistoryService":                "http://sales-history-service.sales-history-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
