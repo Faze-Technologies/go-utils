@@ -13,6 +13,8 @@ import (
 	"github.com/Faze-Technologies/go-utils/logs"
 )
 
+// Defaults are code constants, not env config: changing them per environment
+// invites subtle bugs (e.g. a short ack deadline causing redeliveries mid-handler).
 const (
 	defaultAckDeadline       = 60 * time.Second
 	defaultRetentionDuration = 7 * 24 * time.Hour
@@ -20,22 +22,15 @@ const (
 	defaultMaxBackoff        = 600 * time.Second
 )
 
-// SubscriptionSpec declares one subscription on a topic.
-//
-// Filter is an optional Pub/Sub filter expression evaluated against
-// message attributes (e.g. `attributes.eventType = "order.created"`).
-// It is set at creation time and is immutable afterwards.
-//
-// EnableMessageOrdering, when true, makes the subscription deliver
-// messages sharing the same OrderingKey in the order they were
-// published. The publisher must also set OrderingKey on each message.
 type SubscriptionSpec struct {
-	Name                  string
-	Filter                string
+	Name string
+	// Filter is a Pub/Sub filter expression on message attributes
+	// (e.g. `attributes.region = "us"`). Immutable after creation.
+	Filter string
+	// EnableMessageOrdering: publisher must also set OrderingKey on each message.
 	EnableMessageOrdering bool
 }
 
-// TopicSpec declares one topic and the subscriptions that should exist on it.
 type TopicSpec struct {
 	Name                  string
 	EnableMessageOrdering bool
@@ -128,13 +123,9 @@ func (ps *PubSub) EnsureSubscription(
 	return created, nil
 }
 
-// EnsureTopology ensures every topic and subscription in the given topology
-// exists in GCP. It is idempotent — already-existing topics and subscriptions
-// are left untouched (Pub/Sub does not allow filter or ordering changes after
-// creation, so to rotate one, give it a new name and delete the old one).
-//
-// All subscriptions are created with exactly-once delivery and an exponential
-// retry policy (10s..600s) by default.
+// EnsureTopology is idempotent — Pub/Sub does not allow filter or ordering
+// changes after creation, so to rotate one, give it a new name and delete the old.
+// Subscriptions get exactly-once delivery and a 10s..600s exponential retry policy.
 func (ps *PubSub) EnsureTopology(ctx context.Context, topology []TopicSpec) error {
 	logger := logs.GetLogger()
 	if len(topology) == 0 {
