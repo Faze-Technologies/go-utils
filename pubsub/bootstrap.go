@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,14 +10,37 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/Faze-Technologies/go-utils/config"
 	"github.com/Faze-Technologies/go-utils/logs"
 )
 
 const (
 	defaultAckDeadline       = 60 * time.Second
 	defaultRetentionDuration = 7 * 24 * time.Hour
+	defaultMinBackoff        = 10 * time.Second
+	defaultMaxBackoff        = 600 * time.Second
 )
+
+// SubscriptionSpec declares one subscription on a topic.
+//
+// Filter is an optional Pub/Sub filter expression evaluated against
+// message attributes (e.g. `attributes.eventType = "order.created"`).
+// It is set at creation time and is immutable afterwards.
+//
+// EnableMessageOrdering, when true, makes the subscription deliver
+// messages sharing the same OrderingKey in the order they were
+// published. The publisher must also set OrderingKey on each message.
+type SubscriptionSpec struct {
+	Name                  string
+	Filter                string
+	EnableMessageOrdering bool
+}
+
+// TopicSpec declares one topic and the subscriptions that should exist on it.
+type TopicSpec struct {
+	Name                  string
+	EnableMessageOrdering bool
+	Subscriptions         []SubscriptionSpec
+}
 
 func (ps *PubSub) EnsureTopic(ctx context.Context, topicID string) (*cloudpubsub.Topic, error) {
 	logger := logs.GetLogger()
@@ -106,34 +128,53 @@ func (ps *PubSub) EnsureSubscription(
 	return created, nil
 }
 
-func (ps *PubSub) EnsureTopicSubscriptions(ctx context.Context) error {
+// EnsureTopology ensures every topic and subscription in the given topology
+// exists in GCP. It is idempotent — already-existing topics and subscriptions
+// are left untouched (Pub/Sub does not allow filter or ordering changes after
+// creation, so to rotate one, give it a new name and delete the old one).
+//
+// All subscriptions are created with exactly-once delivery and an exponential
+// retry policy (10s..600s) by default.
+func (ps *PubSub) EnsureTopology(ctx context.Context, topology []TopicSpec) error {
 	logger := logs.GetLogger()
-	raw := config.GetMap("pubSub.topicSubscriptions")
-	if len(raw) == 0 {
-		logger.Info("pubSub.topicSubscriptions not configured; skipping bootstrap")
+	if len(topology) == 0 {
+		logger.Info("Pub/Sub topology is empty; skipping bootstrap")
 		return nil
 	}
 
 	start := time.Now()
-	var topicCount, subCount int
+	var subCount int
 	logger.Info("Bootstrapping Pub/Sub topics and subscriptions",
-		zap.Int("topicCount", len(raw)),
+		zap.Int("topicCount", len(topology)),
 	)
 
-	for topicID, subsRaw := range raw {
-		subIDs, err := toStringSlice(subsRaw)
-		if err != nil {
-			return fmt.Errorf("pubSub.topicSubscriptions[%q]: %w", topicID, err)
+	for _, t := range topology {
+		if t.Name == "" {
+			return fmt.Errorf("topology entry has empty topic name")
 		}
 
-		topic, err := ps.EnsureTopic(ctx, topicID)
+		topic, err := ps.EnsureTopic(ctx, t.Name)
 		if err != nil {
 			return err
 		}
-		topicCount++
+		if t.EnableMessageOrdering {
+			topic.EnableMessageOrdering = true
+		}
 
-		for _, subID := range subIDs {
-			if _, err := ps.EnsureSubscription(ctx, subID, topic, cloudpubsub.SubscriptionConfig{}); err != nil {
+		for _, s := range t.Subscriptions {
+			if s.Name == "" {
+				return fmt.Errorf("topic %q: subscription has empty name", t.Name)
+			}
+			cfg := cloudpubsub.SubscriptionConfig{
+				EnableExactlyOnceDelivery: true,
+				EnableMessageOrdering:     s.EnableMessageOrdering,
+				Filter:                    s.Filter,
+				RetryPolicy: &cloudpubsub.RetryPolicy{
+					MinimumBackoff: defaultMinBackoff,
+					MaximumBackoff: defaultMaxBackoff,
+				},
+			}
+			if _, err := ps.EnsureSubscription(ctx, s.Name, topic, cfg); err != nil {
 				return err
 			}
 			subCount++
@@ -141,31 +182,9 @@ func (ps *PubSub) EnsureTopicSubscriptions(ctx context.Context) error {
 	}
 
 	logger.Info("Pub/Sub bootstrap complete",
-		zap.Int("topics", topicCount),
+		zap.Int("topics", len(topology)),
 		zap.Int("subscriptions", subCount),
 		zap.Duration("duration", time.Since(start)),
 	)
 	return nil
-}
-
-func toStringSlice(v interface{}) ([]string, error) {
-	if v == nil {
-		return nil, nil
-	}
-	switch s := v.(type) {
-	case []string:
-		return s, nil
-	case []interface{}:
-		out := make([]string, 0, len(s))
-		for i, item := range s {
-			str, ok := item.(string)
-			if !ok {
-				return nil, fmt.Errorf("element %d is %T, want string", i, item)
-			}
-			out = append(out, str)
-		}
-		return out, nil
-	default:
-		return nil, errors.New("expected list of subscription names")
-	}
 }
