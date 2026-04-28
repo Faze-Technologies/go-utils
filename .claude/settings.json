@@ -6,7 +6,8 @@
       "Bash(git -C /Users/admin/Documents/Fancraze/go-utils status --short)",
       "Bash(git -C /Users/admin/Documents/Fancraze/go-utils log --oneline -5)",
       "Bash(python3 -m json.tool /Users/admin/Documents/Fancraze/listing-service/env.local.json)",
-      "Bash(python3 -m json.tool env.local.json)"
+      "Bash(python3 -m json.tool env.local.json)",
+      "Bash(python3 -m json.tool /Users/admin/Documents/Fancraze/go-boiler-service/env.local.json)"
     ]
   }
 }
