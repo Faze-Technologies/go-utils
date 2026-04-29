@@ -8,8 +8,10 @@ import (
 	"github.com/Faze-Technologies/go-utils/config"
 )
 
-// EnsureTopologyFromConfig reads `pubSub.topicSubscriptions` and calls EnsureTopology.
-// No-op if the key is missing or empty.
+// EnsureTopologyFromConfig is the config-driven entry point: reads
+// `pubSub.topicSubscriptions` from the loaded config and forwards to
+// EnsureTopology. Missing or empty config is a silent no-op so services
+// without a pubsub topology don't have to special-case the call.
 func (ps *PubSub) EnsureTopologyFromConfig(ctx context.Context) error {
 	topology, err := loadTopologyFromConfig()
 	if err != nil {
@@ -60,7 +62,7 @@ func toSubscriptionSpecs(v interface{}) ([]SubscriptionSpec, error) {
 func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 	obj, ok := item.(map[string]interface{})
 	if !ok {
-		return SubscriptionSpec{}, fmt.Errorf("expected {name, filter, enableMessageOrdering} object, got %T", item)
+		return SubscriptionSpec{}, fmt.Errorf("expected subscription object, got %T", item)
 	}
 
 	nameRaw, ok := obj["name"]
@@ -88,5 +90,34 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 		}
 	}
 
-	return SubscriptionSpec{Name: name, Filter: filter, EnableMessageOrdering: ordering}, nil
+	// JSON numbers decode as float64 through encoding/json; YAML loaders
+	// (viper) sometimes hand back int directly. Accept both rather than
+	// forcing callers to know which path their config went through.
+	var maxDeliveryAttempts int
+	if mdaRaw, ok := obj["maxDeliveryAttempts"]; ok && mdaRaw != nil {
+		switch v := mdaRaw.(type) {
+		case float64:
+			maxDeliveryAttempts = int(v)
+		case int:
+			maxDeliveryAttempts = v
+		default:
+			return SubscriptionSpec{}, fmt.Errorf(`"maxDeliveryAttempts" must be a number, got %T`, mdaRaw)
+		}
+	}
+
+	var deadLetterTopic string
+	if dltRaw, ok := obj["deadLetterTopic"]; ok && dltRaw != nil {
+		deadLetterTopic, ok = dltRaw.(string)
+		if !ok {
+			return SubscriptionSpec{}, fmt.Errorf(`"deadLetterTopic" must be a string, got %T`, dltRaw)
+		}
+	}
+
+	return SubscriptionSpec{
+		Name:                  name,
+		Filter:                filter,
+		EnableMessageOrdering: ordering,
+		MaxDeliveryAttempts:   maxDeliveryAttempts,
+		DeadLetterTopic:       deadLetterTopic,
+	}, nil
 }
