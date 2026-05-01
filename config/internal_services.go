@@ -93,6 +93,7 @@ var InternalServices = map[string]string{
 	"boxService":                         "http://box-service.box-service.svc.cluster.local",
 	"listingService":                     "http://listing-service.listing-service.svc.cluster.local",
 	"salesHistoryService":                "http://sales-history-service.sales-history-service.svc.cluster.local",
+	"savedItemsService":                  "http://saved-items-service.saved-items-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
