@@ -35,6 +35,18 @@ func AllTiers() []Tier {
 	}
 }
 
+// IsValid reports whether s is one of the known tier strings. Useful at
+// trust-boundary points (HTTP request bodies, pubsub payloads) before casting
+// to Tier — type Tier is a string alias so an unchecked cast would silently
+// admit garbage.
+func IsValid(s string) bool {
+	switch Tier(s) {
+	case TierUltraPremium, Tier2To10, Tier10To15, Tier15To40, Tier40To75, Tier75To100:
+		return true
+	}
+	return false
+}
+
 // Range is [Min,Max] inclusive for one tier given the event group's total
 // fraction count.
 type Range struct {
