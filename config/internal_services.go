@@ -5,7 +5,7 @@ var InternalServices = map[string]string{
 	"ffmpegService":                      "http://ffmpeg-service.ffmpeg-service.svc.cluster.local",
 	"segmentationService":                "http://segmentation-service.segmentation-service.svc.cluster.local",
 	"analyticsService":                   "http://analytics-service.analytics-service.svc.cluster.local",
-	"albumService":                       "http://album-service.album-service.svc.cluster.local",
+	"albumService":                       "http://superteam-album-service.superteam-album-service.svc.cluster.local",
 	"authService":                        "http://new-auth-service.new-auth-service.svc.cluster.local",
 	"blockChainHookService":              "http://blockchain-request-hook-service.blockchain-request-hook-service.svc.cluster.local",
 	"blockChainRequestService":           "http://blockchain-request-service.blockchain-request-service.svc.cluster.local",
