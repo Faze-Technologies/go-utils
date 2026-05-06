@@ -16,7 +16,6 @@ import (
 func InitTracerProvider(serviceName string, endpoint string) (*sdktrace.TracerProvider, error) {
 	ctx := context.Background()
 
-	// SigNoz collector endpoint (default: localhost:4317)
 	if endpoint == "" {
 		endpoint = "localhost:4317"
 	}
@@ -44,7 +43,6 @@ func InitTracerProvider(serviceName string, endpoint string) (*sdktrace.TracerPr
 		sdktrace.WithResource(res),
 	)
 
-	// Set global tracer provider and W3C trace context propagator
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},

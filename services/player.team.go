@@ -119,7 +119,6 @@ func FetchPlayersData(slugs []string) (map[string]Player, error) {
 		return make(map[string]Player), nil
 	}
 
-	// Join all slugs with commas
 	slugParam := strings.Join(slugs, ",")
 	serviceUrl := config.GetServiceURL("playerService")
 	url := fmt.Sprintf("%s/slugs/admin?slug=%s", serviceUrl, slugParam)
@@ -139,7 +138,6 @@ func FetchPlayersData(slugs []string) (map[string]Player, error) {
 		return nil, fmt.Errorf("API error: %s", playerResponse.Message)
 	}
 
-	// Create map for easy lookup
 	playersMap := make(map[string]Player)
 	for _, player := range playerResponse.Data {
 		playersMap[player.PlayerSlug] = player

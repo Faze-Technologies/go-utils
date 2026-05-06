@@ -258,12 +258,10 @@ func NewGCSUploaderFromEnv(bucket string) (*GCSUploader, error) {
 //   - IsProd = true:  ProdBaseURL/fullPath
 //   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
 func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
-	// Validate request
 	if err := u.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("request validation failed: %v", err)
 	}
 
-	// Validate file and header are provided
 	if req.File == nil {
 		return nil, fmt.Errorf("file is required")
 	}
@@ -283,26 +281,21 @@ func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*Up
 
 	svc := s3.New(sess)
 
-	// Clean the path and extract directory and base filename
 	cleanPath := strings.TrimPrefix(req.FileName, "/")
 	dir := filepath.Dir(cleanPath)
 	baseFileName := filepath.Base(cleanPath)
 
-	// Get file extension from the uploaded file
 	fileExt := filepath.Ext(req.Header.Filename)
 	if fileExt == "" {
 		fileExt = filepath.Ext(baseFileName)
 	}
 
-	// Remove extension from base filename if it exists
 	if ext := filepath.Ext(baseFileName); ext != "" {
 		baseFileName = strings.TrimSuffix(baseFileName, ext)
 	}
 
-	// Create unique filename with timestamp
 	uniqueFileName := fmt.Sprintf("%s_%d%s", baseFileName, time.Now().UnixNano(), fileExt)
 
-	// Construct full path with directory structure
 	var fullPath string
 	if dir != "" && dir != "." {
 		fullPath = fmt.Sprintf("%s/%s", dir, uniqueFileName)
@@ -320,7 +313,6 @@ func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*Up
 		contentType = "application/octet-stream"
 	}
 
-	// Upload with full path - S3/GCS automatically creates folder structure
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(u.config.Bucket),
 		Key:         aws.String(fullPath),
@@ -370,7 +362,6 @@ func (u *GCSUploader) UploadDataToBucket(ctx context.Context, bucketName string,
 
 	svc := s3.New(sess)
 
-	// Clean the path
 	fullPath := strings.TrimPrefix(destinationPath, "/")
 
 	if contentType == "" {
@@ -405,12 +396,10 @@ func (u *GCSUploader) UploadDataToBucket(ctx context.Context, bucketName string,
 //   - IsProd = true:  ProdBaseURL/fullPath
 //   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
 func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
-	// Validate request
 	if err := u.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("request validation failed: %v", err)
 	}
 
-	// Validate file and header are provided
 	if req.File == nil {
 		return nil, fmt.Errorf("file is required")
 	}
@@ -430,23 +419,19 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 
 	svc := s3.New(sess)
 
-	// Clean the path and extract directory and base filename
 	cleanPath := strings.TrimPrefix(req.FileName, "/")
 	dir := filepath.Dir(cleanPath)
 	baseFileName := filepath.Base(cleanPath)
 
-	// Get file extension from the uploaded file
 	fileExt := filepath.Ext(req.Header.Filename)
 	if fileExt == "" {
 		fileExt = filepath.Ext(baseFileName)
 	}
 
-	// Remove extension from base filename if it exists
 	if ext := filepath.Ext(baseFileName); ext != "" {
 		baseFileName = strings.TrimSuffix(baseFileName, ext)
 	}
 
-	// Construct initial full path
 	var fullPath string
 	fileName := fmt.Sprintf("%s%s", baseFileName, fileExt)
 	if dir != "" && dir != "." {
@@ -455,13 +440,13 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 		fullPath = fileName
 	}
 
-	// Check if file already exists
+	// HeadObject returns nil err only if the key already exists; in that case
+	// add a timestamp to avoid clobbering. Any other error (including NotFound)
+	// means we proceed with the original name.
 	_, err = svc.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(u.config.Bucket),
 		Key:    aws.String(fullPath),
 	})
-
-	// If file exists (no error), add timestamp to make it unique
 	if err == nil {
 		uniqueFileName := fmt.Sprintf("%s_%d%s", baseFileName, time.Now().UnixNano(), fileExt)
 		if dir != "" && dir != "." {
@@ -470,7 +455,6 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 			fullPath = uniqueFileName
 		}
 	}
-	// If error is not "NotFound", we continue with the original filename
 
 	fileBytes, err := io.ReadAll(req.File)
 	if err != nil {
@@ -482,7 +466,6 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 		contentType = "application/octet-stream"
 	}
 
-	// Upload with full path - S3/GCS automatically creates folder structure
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(u.config.Bucket),
 		Key:         aws.String(fullPath),
@@ -517,12 +500,10 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 //   - IsProd = true:  ProdBaseURL/fullPath
 //   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
 func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
-	// Validate request
 	if err := u.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("request validation failed: %v", err)
 	}
 
-	// Validate file and header are provided
 	if req.File == nil {
 		return nil, fmt.Errorf("file is required")
 	}
@@ -542,23 +523,19 @@ func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3Upload
 
 	svc := s3.New(sess)
 
-	// Clean the path and extract directory and base filename
 	cleanPath := strings.TrimPrefix(req.FileName, "/")
 	dir := filepath.Dir(cleanPath)
 	baseFileName := filepath.Base(cleanPath)
 
-	// Get file extension from the uploaded file
 	fileExt := filepath.Ext(req.Header.Filename)
 	if fileExt == "" {
 		fileExt = filepath.Ext(baseFileName)
 	}
 
-	// Remove extension from base filename if it exists
 	if ext := filepath.Ext(baseFileName); ext != "" {
 		baseFileName = strings.TrimSuffix(baseFileName, ext)
 	}
 
-	// Construct filename without timestamp (will overwrite if exists)
 	var fullPath string
 	fileName := fmt.Sprintf("%s%s", baseFileName, fileExt)
 	if dir != "" && dir != "." {
@@ -577,7 +554,6 @@ func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3Upload
 		contentType = "application/octet-stream"
 	}
 
-	// Upload with full path - will overwrite if file already exists
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(u.config.Bucket),
 		Key:         aws.String(fullPath),

@@ -15,34 +15,25 @@ import (
 func InitAerospikeDB() *aerospike.Client {
 	logger := logs.GetLogger()
 
-	// Get configuration values
 	port := config.GetInt("aerospike.port")
-
-	// Set default port if not specified (standard Aerospike port)
 	if port == 0 {
-		port = 3000 // Default Aerospike port
+		port = 3000
 	}
 
 	logger.Info("Connecting to Aerospike cluster", zap.Int("port", port))
 
-	// Create Aerospike client policy optimized for K8s
 	clientPolicy := aerospike.NewClientPolicy()
 
-	// Set connection timeout suitable for K8s environment
 	timeoutSeconds := config.GetInt("aerospike.timeout_seconds")
 	if timeoutSeconds > 0 {
 		clientPolicy.Timeout = time.Duration(timeoutSeconds) * time.Second
 	}
-	// Default timeout is already set in clientPolicy
 
-	// Configure connection pool for K8s deployment
 	clientPolicy.ConnectionQueueSize = config.GetInt("aerospike.connection_queue_size")
 	if clientPolicy.ConnectionQueueSize == 0 {
-		clientPolicy.ConnectionQueueSize = 256 // Default for K8s deployment
+		clientPolicy.ConnectionQueueSize = 256
 	}
 
-	// Optional: Configure authentication for Aerospike Community Edition
-	// Note: Community Edition has limited auth features compared to Enterprise
 	username := config.GetString("aerospike.username")
 	password := config.GetString("aerospike.password")
 	if username != "" && password != "" {
@@ -51,18 +42,16 @@ func InitAerospikeDB() *aerospike.Client {
 		logger.Info("Using authentication for Aerospike connection")
 	}
 
-	// Optional: Configure TLS if enabled in K8s operator
 	tlsName := config.GetString("aerospike.tls_name")
 	enableTLS := config.GetBool("aerospike.enable_tls")
 	if enableTLS && tlsName != "" {
 		clientPolicy.TlsConfig = &tls.Config{
 			ServerName:         tlsName,
-			InsecureSkipVerify: config.GetBool("aerospike.tls_skip_verify"), // For dev environments
+			InsecureSkipVerify: config.GetBool("aerospike.tls_skip_verify"),
 		}
 		logger.Info("Using TLS for Aerospike connection", zap.String("tls_name", tlsName))
 	}
 
-	// Expect only array form in config: `aerospike.hosts: ["ip1","ip2"]`
 	hostCandidates := []string{}
 	hostSlice := config.GetSlice("aerospike.hosts")
 	if len(hostSlice) == 0 {
