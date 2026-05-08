@@ -244,3 +244,63 @@ func (m *Middlewares) AuthenticateUser(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 	c.Next()
 }
+
+// AuthenticateUserOptional is a best-effort variant of AuthenticateUser:
+// if the request carries a valid Authorization token, the user is parsed,
+// KYC verified, and stored in the context exactly as AuthenticateUser does.
+// If the header is missing, the token is invalid, or any parsing/KYC step
+// fails, we silently skip the context-set and call c.Next(). Downstream
+// handlers can then call GetAuthUser to detect the auth state — a non-nil
+// user means a valid token was supplied; a ServiceError means either no
+// token or an unusable one. Either is acceptable on routes that wrap with
+// this middleware.
+func (m *Middlewares) AuthenticateUserOptional(c *gin.Context) {
+	accessToken := c.Request.Header.Get("Authorization")
+	if accessToken == "" {
+		c.Next()
+		return
+	}
+
+	token, sErr := verifyTokenSignature(c.Request.Context(), accessToken)
+	if sErr != nil {
+		c.Next()
+		return
+	}
+
+	jwtClaims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		c.Next()
+		return
+	}
+
+	claimsData, ok := jwtClaims["data"]
+	if !ok {
+		c.Next()
+		return
+	}
+
+	jsonBytes, err := json.Marshal(claimsData)
+	if err != nil {
+		c.Next()
+		return
+	}
+
+	var user UserDetails
+	if err := json.Unmarshal(jsonBytes, &user); err != nil {
+		c.Next()
+		return
+	}
+
+	clientIP := c.ClientIP()
+	verifiedKycStatus, country, err := m.verifyKYCStatus(c.Request.Context(), user.Id, clientIP, user.KycStatus, user.KycCountry)
+	if err != nil {
+		m.Logger.Error("Error verifying KYC status (optional auth)", zap.String("userId", user.Id), zap.Error(err))
+		verifiedKycStatus = user.KycStatus
+	}
+	user.KycStatus = verifiedKycStatus
+	user.KycCountry = country
+
+	ctx := context.WithValue(c.Request.Context(), userContextKey, user)
+	c.Request = c.Request.WithContext(ctx)
+	c.Next()
+}
