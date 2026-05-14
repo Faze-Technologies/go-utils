@@ -2,6 +2,9 @@
 */*.log
 *.env
 
+# MaxMind GeoIP database files (only present when running locally)
+.geoip/
+
 # General
 .idea
 test/*
