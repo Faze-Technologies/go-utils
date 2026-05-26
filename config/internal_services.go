@@ -26,6 +26,7 @@ var InternalServices = map[string]string{
 	"superteamSegmentationService":       "http://superteam-segmentation-service.superteam-segmentation-service.svc.cluster.local",
 	"leaderboardService":                 "http://leaderboard-service.leaderboard-service.svc.cluster.local",
 	"momentLeaderboardService":           "http://moment-leaderboard-service.moment-leaderboard-service.svc.cluster.local",
+	"openseaLeaderboardService":          "http://opensea-leaderboard-service.opensea-leaderboard-service.svc.cluster.local",
 	"milestoneService":                   "http://milestone-service.milestone-service.svc.cluster.local",
 	"miniGamesService":                   "http://mini-games-service.mini-games-service.svc.cluster.local",
 	"preRegMiniGamesService":             "http://prereg-mini-game.mini-games-service.svc.cluster.local",
