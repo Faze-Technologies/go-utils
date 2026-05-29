@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	cloudpubsub "cloud.google.com/go/pubsub"
 	"go.opentelemetry.io/otel"
@@ -25,6 +26,9 @@ func (ps *PubSub) StartSubscribers(handlers map[string]HandlerFunction) {
 		NumGoroutines:          config.GetInt("pubSub.numGoroutines"),
 		MaxOutstandingMessages: config.GetInt("pubSub.maxOutstandingMessages"),
 		MaxOutstandingBytes:    config.GetInt("pubSub.maxOutstandingBytes"),
+	}
+	if secs := config.GetInt("pubSub.maxExtensionSeconds"); secs > 0 {
+		receiveSettings.MaxExtension = time.Duration(secs) * time.Second
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
