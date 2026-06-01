@@ -2,56 +2,38 @@ package secrets
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"cloud.google.com/go/secretmanager/apiv1"
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
-	"github.com/Faze-Technologies/go-utils/config"
-	"github.com/Faze-Technologies/go-utils/logs"
-	"go.uber.org/zap"
-	"google.golang.org/api/option"
 )
 
+// SecretManagerClient wraps the Google Cloud Secret Manager client.
+// Authentication uses Application Default Credentials (ADC), which resolves in order:
+//  1. GOOGLE_APPLICATION_CREDENTIALS env var → explicit service account key file
+//  2. gcloud user credentials (local development via `gcloud auth application-default login`)
+//  3. GCE/GKE metadata server → covers Workload Identity Federation automatically
 type SecretManagerClient struct {
 	client *secretmanager.Client
 }
 
-func NewSecretManagerClient() *SecretManagerClient {
-	logger := logs.GetLogger()
-	svcAccMap := config.GetMap("secretManager.serviceAccount")
-	if svcAccMap == nil {
-		logger.Fatal("KMSClient Service Account map not configured in kms.serviceAccount")
-	}
-
-	svcAccountJSON, err := json.Marshal(svcAccMap)
+// NewSecretManagerClient creates a Secret Manager client using Application Default Credentials.
+// Returns an error if the underlying GCP client cannot be initialized.
+func NewSecretManagerClient() (*SecretManagerClient, error) {
+	client, err := secretmanager.NewClient(context.Background())
 	if err != nil {
-		logger.Fatal("Invalid SecretManagerClient Service Account map", zap.Error(err))
+		return nil, fmt.Errorf("failed to create Secret Manager client: %w", err)
 	}
-
-	logger.Info("Initializing Secret Manager client")
-	ctx := context.Background()
-	client, err := secretmanager.NewClient(ctx, option.WithCredentialsJSON(svcAccountJSON))
-	if err != nil {
-		logger.Fatal("Failed to create Secret Manager client", zap.Error(err))
-	}
-
-	logger.Info("Secret Manager client initialized successfully")
-	return &SecretManagerClient{client: client}
+	return &SecretManagerClient{client: client}, nil
 }
 
 func (sm *SecretManagerClient) GetSecret(ctx context.Context, secretVersionName string) (string, error) {
-	logger := logs.GetLogger()
-	req := &secretmanagerpb.AccessSecretVersionRequest{
+	result, err := sm.client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
 		Name: secretVersionName,
-	}
-
-	result, err := sm.client.AccessSecretVersion(ctx, req)
+	})
 	if err != nil {
-		logger.Error("Failed to access secret version", zap.String("secret", secretVersionName), zap.Error(err))
-		return "", fmt.Errorf("failed to access secret version: %w", err)
+		return "", fmt.Errorf("failed to access secret %q: %w", secretVersionName, err)
 	}
-
 	return string(result.Payload.Data), nil
 }
 
