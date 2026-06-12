@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Faze-Technologies/go-utils/config"
 )
@@ -65,7 +66,13 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 		return SubscriptionSpec{}, fmt.Errorf("expected subscription object, got %T", item)
 	}
 
-	nameRaw, ok := obj["name"]
+	// Viper lowercases all map keys recursively when loading config, so
+	// obj keys arrive as lowercase regardless of how they were written in
+	// the JSON file. lookupCI does a case-insensitive get so callers are
+	// not broken by whatever casing their config loader produces.
+	lookup := newCIMap(obj)
+
+	nameRaw, ok := lookup.get("name")
 	if !ok {
 		return SubscriptionSpec{}, errors.New(`missing "name"`)
 	}
@@ -75,7 +82,7 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 	}
 
 	var filter string
-	if filterRaw, ok := obj["filter"]; ok && filterRaw != nil {
+	if filterRaw, ok := lookup.get("filter"); ok && filterRaw != nil {
 		filter, ok = filterRaw.(string)
 		if !ok {
 			return SubscriptionSpec{}, fmt.Errorf(`"filter" must be a string, got %T`, filterRaw)
@@ -83,7 +90,7 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 	}
 
 	var ordering bool
-	if orderingRaw, ok := obj["enableMessageOrdering"]; ok && orderingRaw != nil {
+	if orderingRaw, ok := lookup.get("enableMessageOrdering"); ok && orderingRaw != nil {
 		ordering, ok = orderingRaw.(bool)
 		if !ok {
 			return SubscriptionSpec{}, fmt.Errorf(`"enableMessageOrdering" must be a bool, got %T`, orderingRaw)
@@ -94,7 +101,7 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 	// (viper) sometimes hand back int directly. Accept both rather than
 	// forcing callers to know which path their config went through.
 	var maxDeliveryAttempts int
-	if mdaRaw, ok := obj["maxDeliveryAttempts"]; ok && mdaRaw != nil {
+	if mdaRaw, ok := lookup.get("maxDeliveryAttempts"); ok && mdaRaw != nil {
 		switch v := mdaRaw.(type) {
 		case float64:
 			maxDeliveryAttempts = int(v)
@@ -106,7 +113,7 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 	}
 
 	var deadLetterTopic string
-	if dltRaw, ok := obj["deadLetterTopic"]; ok && dltRaw != nil {
+	if dltRaw, ok := lookup.get("deadLetterTopic"); ok && dltRaw != nil {
 		deadLetterTopic, ok = dltRaw.(string)
 		if !ok {
 			return SubscriptionSpec{}, fmt.Errorf(`"deadLetterTopic" must be a string, got %T`, dltRaw)
@@ -120,4 +127,23 @@ func toSubscriptionSpec(item interface{}) (SubscriptionSpec, error) {
 		MaxDeliveryAttempts:   maxDeliveryAttempts,
 		DeadLetterTopic:       deadLetterTopic,
 	}, nil
+}
+
+// ciMap is a case-insensitive view over a map[string]interface{}. It builds a
+// lowercase-keyed index once at construction so repeated gets are O(1).
+type ciMap struct {
+	index map[string]interface{}
+}
+
+func newCIMap(m map[string]interface{}) ciMap {
+	idx := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		idx[strings.ToLower(k)] = v
+	}
+	return ciMap{index: idx}
+}
+
+func (c ciMap) get(key string) (interface{}, bool) {
+	v, ok := c.index[strings.ToLower(key)]
+	return v, ok
 }
