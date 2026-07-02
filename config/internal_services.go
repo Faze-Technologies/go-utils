@@ -95,6 +95,7 @@ var InternalServices = map[string]string{
 	"listingService":                     "http://listing-service.listing-service.svc.cluster.local",
 	"salesHistoryService":                "http://sales-history-service.sales-history-service.svc.cluster.local",
 	"savedItemsService":                  "http://saved-items-service.saved-items-service.svc.cluster.local",
+	"supportPlatformService":             "http://support-platform-service.support-platform-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
