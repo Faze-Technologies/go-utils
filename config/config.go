@@ -42,6 +42,15 @@ func GetSlice(key string) []string {
 	return viper.GetStringSlice(key)
 }
 
+// IsSet reports whether key has an explicit value in config, as opposed to
+// GetInt/GetString/etc. silently returning their zero value for an absent
+// key. Use this when the zero value is itself a meaningful setting (e.g.
+// minPoolSize: 0) and callers need to distinguish "unset, use driver
+// default" from "explicitly set to zero".
+func IsSet(key string) bool {
+	return viper.IsSet(key)
+}
+
 func Init() {
 	envFile := os.Getenv("ENV_FILE")
 	if envFile == "" {
