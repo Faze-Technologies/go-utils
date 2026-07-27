@@ -318,6 +318,92 @@ func (cache Cache) SAdd(ctx context.Context, key string, members ...interface{})
 	return cache.rDB.SAdd(ctx, key, members...).Result()
 }
 
+// ZAdd adds or updates a member in a sorted set with the given score.
+func (cache Cache) ZAdd(ctx context.Context, key string, score float64, member interface{}) (int64, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZAdd(ctx, key, redis.Z{Score: score, Member: member}).Result()
+	if err != nil {
+		logger.Error("error while zadd", zap.String("key", key), zap.Error(err))
+		return 0, err
+	}
+	return result, nil
+}
+
+// ZAddMany adds or updates multiple members in a sorted set in a single pipeline.
+func (cache Cache) ZAddMany(ctx context.Context, key string, members map[interface{}]float64) error {
+	logger := logs.WithContext(ctx)
+	if len(members) == 0 {
+		return nil
+	}
+	zs := make([]redis.Z, 0, len(members))
+	for member, score := range members {
+		zs = append(zs, redis.Z{Score: score, Member: member})
+	}
+	if err := cache.rDB.ZAdd(ctx, key, zs...).Err(); err != nil {
+		logger.Error("error while zaddMany", zap.String("key", key), zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+// ZRange returns members in a sorted set within the given rank range, ordered by score ascending.
+func (cache Cache) ZRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZRange(ctx, key, start, stop).Result()
+	if err != nil {
+		logger.Error("error while zrange", zap.String("key", key), zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+// ZRevRange returns members in a sorted set within the given rank range, ordered by score descending.
+func (cache Cache) ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZRevRange(ctx, key, start, stop).Result()
+	if err != nil {
+		logger.Error("error while zrevrange", zap.String("key", key), zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+// ZCard returns the number of members in a sorted set.
+func (cache Cache) ZCard(ctx context.Context, key string) (int64, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZCard(ctx, key).Result()
+	if err != nil {
+		logger.Error("error while zcard", zap.String("key", key), zap.Error(err))
+		return 0, err
+	}
+	return result, nil
+}
+
+// ZScore returns the score of a member in a sorted set.
+func (cache Cache) ZScore(ctx context.Context, key, member string) (float64, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZScore(ctx, key, member).Result()
+	if errors.Is(err, redis.Nil) {
+		return 0, fmt.Errorf(string(request.KeyNotFoundError))
+	}
+	if err != nil {
+		logger.Error("error while zscore", zap.String("key", key), zap.String("member", member), zap.Error(err))
+		return 0, err
+	}
+	return result, nil
+}
+
+// ZRem removes members from a sorted set.
+func (cache Cache) ZRem(ctx context.Context, key string, members ...interface{}) (int64, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZRem(ctx, key, members...).Result()
+	if err != nil {
+		logger.Error("error while zrem", zap.String("key", key), zap.Error(err))
+		return 0, err
+	}
+	return result, nil
+}
+
 func (cache Cache) SMembers(ctx context.Context, key string) ([]string, error) {
 	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SMembers(ctx, key).Result()
