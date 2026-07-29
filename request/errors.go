@@ -46,7 +46,7 @@ func CreateNotFoundError(err error, message string) *ServiceError {
 
 func CreateTooManyRequestsError(err error, message string) *ServiceError {
 	sErr := ServiceError{}
-	statusCode := http.StatusNotFound
+	statusCode := http.StatusTooManyRequests
 	errorCode := ResourceExhaustedError
 	sErr.generateCustomError(statusCode, errorCode, message, err, nil)
 	return &sErr

@@ -36,7 +36,7 @@ func RateLimiter(cache *cache.Cache, redisKey string) gin.HandlerFunc {
 		}
 
 		ctx := context.Background()
-		ip := c.ClientIP()
+		ip := resolveClientIP(c)
 		key := fmt.Sprintf(redisKey, ip)
 
 		rateLimitCount := config.GetInt("rate-limit.count")

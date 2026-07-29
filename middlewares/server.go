@@ -39,6 +39,21 @@ var sensitiveKeys = map[string]bool{
 	"secret": true, "authorization": true,
 }
 
+// resolveClientIP returns the real client IP from X-Forwarded-For (first IP
+// in the chain), falling back to Gin's ClientIP(). Deployments sit behind
+// GCP's load balancer, which re-originates the TCP connection from its own
+// GFE IP pool (35.191.0.0/16) — so RemoteAddr/ClientIP() alone identifies
+// the LB, not the caller, and SetTrustedProxies can't fix that since the LB
+// IP rotates per request.
+func resolveClientIP(c *gin.Context) string {
+	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
+		if ip := strings.TrimSpace(strings.Split(xff, ",")[0]); ip != "" {
+			return ip
+		}
+	}
+	return c.ClientIP()
+}
+
 // resolveInternalUserID extracts userId from headers/query for internal service-to-service calls.
 // c.GetHeader is case-insensitive for hyphenated headers (user-id == User-Id == USER-ID),
 // but "userId" has a different canonical form so it needs its own check.
@@ -90,15 +105,7 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 		cost := time.Since(start)
 
-		// Resolve client IP from X-Forwarded-For header (first IP is the real client),
-		// falling back to Gin's ClientIP() which depends on SetTrustedProxies config.
-		clientIP := ""
-		if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
-			clientIP = strings.TrimSpace(strings.Split(xff, ",")[0])
-		}
-		if clientIP == "" {
-			clientIP = c.ClientIP()
-		}
+		clientIP := resolveClientIP(c)
 
 		span := trace.SpanFromContext(c.Request.Context())
 
