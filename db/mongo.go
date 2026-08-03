@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"time"
 
@@ -15,14 +16,24 @@ import (
 
 func InitMongoDB() *mongo.Client {
 	logger := logs.GetLogger()
-	mongoPrefix := "mongodb+srv"
-	if config.IsSet("mongodb.prefix") {
-		mongoPrefix = config.GetString("mongodb.prefix")
+	host := config.GetString("mongodb.host")
+	user := config.GetString("mongodb.user")
+	password := url.PathEscape(config.GetString("mongodb.password"))
+
+	// mongodb+srv:// resolves the replica set via a DNS SRV record — that's
+	// how Atlas advertises its hosts, but a raw IP (self-hosted, no DNS
+	// record) has no SRV entry to resolve and must use the plain scheme
+	// with an explicit port instead. authSource=admin is required in both
+	// cases: every mongo user, Atlas or self-hosted, is provisioned on the
+	// admin database regardless of which database it has roles on.
+	var dbURL string
+	if net.ParseIP(host) != nil {
+		dbURL = fmt.Sprintf("mongodb://%s:%s@%s:27017/?retryWrites=true&w=majority&authSource=admin&directConnection=true",
+			user, password, host)
+	} else {
+		dbURL = fmt.Sprintf("mongodb+srv://%s:%s@%s/?retryWrites=true&w=majority&authSource=admin",
+			user, password, host)
 	}
-	dbURL := fmt.Sprintf(mongoPrefix+"://%s:%s@%s/?retryWrites=true&w=majority",
-		config.GetString("mongodb.user"),
-		url.PathEscape(config.GetString("mongodb.password")),
-		config.GetString("mongodb.host"))
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(dbURL).SetServerAPIOptions(serverAPI).SetMonitor(otelmongo.NewMonitor(otelmongo.WithCommandAttributeDisabled(false)))
 
