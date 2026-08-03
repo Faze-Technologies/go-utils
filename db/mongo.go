@@ -15,7 +15,11 @@ import (
 
 func InitMongoDB() *mongo.Client {
 	logger := logs.GetLogger()
-	dbURL := fmt.Sprintf("mongodb+srv://%s:%s@%s/?retryWrites=true&w=majority",
+	mongoPrefix := "mongodb+srv"
+	if config.IsSet("mongodb.prefix") {
+		mongoPrefix = config.GetString("mongodb.prefix")
+	}
+	dbURL := fmt.Sprintf(mongoPrefix+"://%s:%s@%s/?retryWrites=true&w=majority",
 		config.GetString("mongodb.user"),
 		url.PathEscape(config.GetString("mongodb.password")),
 		config.GetString("mongodb.host"))
