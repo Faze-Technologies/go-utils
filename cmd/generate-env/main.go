@@ -4,86 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 )
 
-var commonServices = []string{
-	"analytics-service",
-	"analytics-service-pubsub",
-	"blockchain-request-hook-service",
-	"blockchain-request-queue-service",
-	"blockchain-request-service",
-	"bff-service",
-	"cms-service",
-	"control-service",
-	"cron-scheduler-service",
-	"event-service",
-	"finance-service",
-	"finance-service-pubsub",
-	"payment-gateway-service",
-	"payment-gateway-service-pubsub",
-	"flow-service",
-	"flow-service-pubsub",
-	"freshdesk-service",
-	"kyc-service",
-	"milestone-service",
-	"milestone-service-pubsub",
-	"mini-games-service",
-	"mini-games-service-pubsub",
-	"nba-data-service",
-	"nba-data-service-pubsub",
-	"nba-flash-service",
-	"nba-flash-service-pubsub",
-	"newadmin-bff",
-	"notification-service",
-	"notification-service-pubsub",
-	"notification-service-v2",
-	"notification-service-v2-pubsub",
-	"oldadmin-bff",
-	"packs-service",
-	"packs-service-pubsub",
-	"personalization-service",
-	"research-service",
-	"research-service-pubsub",
-	"reward-service",
-	"reward-service-pubsub",
-	"risk-analysis-service",
-	"risk-analysis-service-pubsub",
-	"segmentation-service",
-	"set-service",
-	"set-service-pubsub",
-	"team-service",
-	"wallet-service",
-	"wallet-service-pubsub",
-	"boiler-service",
-}
+var commonServices = []string{}
 
-var challengeServices = []string{
-	"new-auth-service",
-	"challenge-service",
-	"challenge-service-pubsub",
-	"leaderboard-service",
-	"mint-factory-service",
-	"moment-service",
-	"moment-service-pubsub",
-	"nft-service",
-	"profile-service",
-	"profile-service-pubsub",
-	"sports-service",
-	"sports-service-pubsub",
-}
-
-var fandomServices = []string{
-	"fandom-moment-service",
-	"fandom-moment-service-pubsub",
-	"fandom-finance-service",
-	"fandom-finance-service-pubsub",
-}
-
-var paymentGatewayServices = []string{
-	"payment-gateway-service",
-	"payment-gateway-service-pubsub",
-}
+var (
+	ChallengeServices = []string{}
+	SuperteamServices = []string{"cm-miscellaneous-service"}
+)
 
 type configItem struct {
 	Key       string `json:"key"`
@@ -92,7 +22,7 @@ type configItem struct {
 }
 
 func generateSecretsConfig(serviceName string) []configItem {
-	config := []configItem{
+	items := []configItem{
 		{Key: "secretConfig", Env: "secretConfig", ParseJSON: true},
 		{Key: "mongodb", Env: "mongodb", ParseJSON: true},
 		{Key: "commonRedis", Env: "redis", ParseJSON: true},
@@ -102,41 +32,52 @@ func generateSecretsConfig(serviceName string) []configItem {
 
 	fmt.Printf("Generating .env for %s service\n", serviceName)
 
-	if slices.Contains(challengeServices, serviceName) {
-		for i := range config {
-			if config[i].Key == "commonRedis" {
-				config[i].Key = "challengeRedis"
+	if slices.Contains(ChallengeServices, serviceName) {
+		for i := range items {
+			if items[i].Key == "commonRedis" {
+				items[i].Key = "challengeRedis"
 			}
 		}
 	}
 
-	if slices.Contains(fandomServices, serviceName) {
-		for i := range config {
-			if config[i].Key == "commonRedis" {
-				config[i].Key = "fandomRedis"
+	if slices.Contains(SuperteamServices, serviceName) {
+		for i := range items {
+			if items[i].Key == "commonRedis" {
+				items[i].Key = "superteamRedis"
 			}
 		}
 	}
-
-	if serviceName == "cron-scheduler-service" || serviceName == "newadmin-bff" {
-		fmt.Printf("Adding challengeRedis for %s\n", serviceName)
-		config = append(config, configItem{Key: "challengeRedis", Env: "challengeRedis", ParseJSON: true})
-	}
-
-	if slices.Contains(paymentGatewayServices, serviceName) {
-		config = append(config, configItem{Key: "dek", Env: "dek", ParseJSON: true})
-	}
-
-	return config
+	return items
 }
 
-func writeEnvFile(config []configItem) error {
-	secretsConfig, err := json.MarshalIndent(config, "", "  ")
+func writeEnvFile(serviceName string, items []configItem) error {
+	secretsConfig, err := json.MarshalIndent(items, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	content := fmt.Sprintf("SECRETS_CONFIG='%s'", secretsConfig)
+	server, err := json.Marshal(map[string]interface{}{
+		"port":         ":8080",
+		"readTimeout":  5,
+		"writeTimeout": 5,
+	})
+	if err != nil {
+		return err
+	}
+
+	apm, err := json.Marshal(map[string]interface{}{
+		"enabled":      false,
+		"serviceName":  serviceName,
+		"otlpEndpoint": "otel-collector.observability.svc.cluster.local:4317",
+	})
+	if err != nil {
+		return err
+	}
+
+	content := fmt.Sprintf(
+		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nSERVER='%s'\nAPM='%s'\n",
+		secretsConfig, server, apm,
+	)
 
 	if err := os.WriteFile(".env", []byte(content), 0644); err != nil {
 		return err
@@ -146,22 +87,28 @@ func writeEnvFile(config []configItem) error {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "Error: serviceName must be provided")
-		os.Exit(1)
+	serviceName := ""
+	if len(os.Args) >= 2 {
+		serviceName = os.Args[1]
+	} else {
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		serviceName = filepath.Base(cwd)
 	}
-	serviceName := os.Args[1]
 
 	valid := slices.Contains(commonServices, serviceName) ||
-		slices.Contains(challengeServices, serviceName) ||
-		slices.Contains(fandomServices, serviceName)
+		slices.Contains(ChallengeServices, serviceName) ||
+		slices.Contains(SuperteamServices, serviceName)
 	if !valid {
 		fmt.Fprintln(os.Stderr, "Error: Invalid serviceName provided")
 		os.Exit(1)
 	}
 
-	config := generateSecretsConfig(serviceName)
-	if err := writeEnvFile(config); err != nil {
+	items := generateSecretsConfig(serviceName)
+	if err := writeEnvFile(serviceName, items); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
