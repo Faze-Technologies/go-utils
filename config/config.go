@@ -204,6 +204,13 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 			continue
 		}
 
+		// ponytail: some secrets were pasted in with U+00A0 (non-breaking
+		// space) indentation instead of regular spaces, which JSON doesn't
+		// accept as whitespace and fails to parse. Normalize it away here;
+		// fix the ceiling (re-save the secret with normal whitespace) if this
+		// stops being a copy-paste artifact.
+		value = strings.ReplaceAll(value, " ", " ")
+
 		var parsed map[string]interface{}
 		if err := json.Unmarshal([]byte(value), &parsed); err != nil {
 			panic(fmt.Errorf("failed to parse %q secret: %w", item.Key, err))
