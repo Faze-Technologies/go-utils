@@ -19,15 +19,28 @@ import (
 
 type HandlerFunction func(context.Context, *cloudpubsub.Message)
 
+func getIntFallback(flatKey, nestedKey string) int {
+	if v := config.GetInt(flatKey); v != 0 {
+		return v
+	}
+	return config.GetInt(nestedKey)
+}
+
 func (ps *PubSub) StartSubscribers(handlers map[string]HandlerFunction) {
 	logger := logs.GetLogger()
-	pubsubSubscribers := config.GetSlice("pubSub.subscribers")
-	receiveSettings := cloudpubsub.ReceiveSettings{
-		NumGoroutines:          config.GetInt("pubSub.numGoroutines"),
-		MaxOutstandingMessages: config.GetInt("pubSub.maxOutstandingMessages"),
-		MaxOutstandingBytes:    config.GetInt("pubSub.maxOutstandingBytes"),
+
+	// New shape: flat keys. Old shape: nested under "pubSub.*". Support both,
+	// same as client.go/topology_config.go do for the rest of the pubsub config.
+	pubsubSubscribers := config.GetSlice("subscribers")
+	if len(pubsubSubscribers) == 0 {
+		pubsubSubscribers = config.GetSlice("pubSub.subscribers")
 	}
-	if secs := config.GetInt("pubSub.maxExtensionSeconds"); secs > 0 {
+	receiveSettings := cloudpubsub.ReceiveSettings{
+		NumGoroutines:          getIntFallback("numGoroutines", "pubSub.numGoroutines"),
+		MaxOutstandingMessages: getIntFallback("maxOutstandingMessages", "pubSub.maxOutstandingMessages"),
+		MaxOutstandingBytes:    getIntFallback("maxOutstandingBytes", "pubSub.maxOutstandingBytes"),
+	}
+	if secs := getIntFallback("maxExtensionSeconds", "pubSub.maxExtensionSeconds"); secs > 0 {
 		receiveSettings.MaxExtension = time.Duration(secs) * time.Second
 	}
 

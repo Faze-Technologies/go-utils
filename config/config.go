@@ -45,11 +45,13 @@ var environmentProjects = map[string]string{
 	"prod":    "prj-fc-prod",
 }
 
-// secretConfigKey and mongodbKey get special handling in initFromSecretManager
-// (see the switch there); every other SECRETS_CONFIG entry is merged as-is.
+// secretConfigKey, mongodbKey and postgresKey get special handling in
+// initFromSecretManager (see the switch there); every other SECRETS_CONFIG
+// entry is merged as-is.
 const (
 	secretConfigKey = "secretConfig"
 	mongodbKey      = "mongodb"
+	postgresKey     = "postgres"
 )
 
 func Get(key string) interface{} {
@@ -266,6 +268,16 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 				}
 				viper.Set("mongodb.database", dbName)
 			}
+		case postgresKey:
+			// The postgres secret only holds user/host/database/password;
+			// db.InitPostgresDB additionally reads postgres.dbname/port/sslmode,
+			// so translate the field name and fill in the legacy defaults here.
+			viper.Set("postgres.user", parsed["user"])
+			viper.Set("postgres.host", parsed["host"])
+			viper.Set("postgres.password", parsed["password"])
+			viper.Set("postgres.dbname", parsed["database"])
+			viper.Set("postgres.port", 5432)
+			viper.Set("postgres.sslmode", "disable")
 		default:
 			if err := viper.MergeConfigMap(map[string]interface{}{item.Env: parsed}); err != nil {
 				panic(fmt.Errorf("failed to merge %q secret: %w", item.Key, err))
@@ -326,11 +338,6 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 		}
 	}
 
-	// ponytail: debug-only dump of the fully resolved config, remove once
-	// you're done inspecting it.
-	if debugJSON, err := json.MarshalIndent(viper.AllSettings(), "", "  "); err == nil {
-		_ = os.WriteFile("config.debug.json", debugJSON, 0644)
-	}
 }
 
 func secretVersionName(project, secret string) string {
