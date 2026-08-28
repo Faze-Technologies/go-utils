@@ -315,7 +315,7 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 	}
 
 	// OTEL_EXPORTER_OTLP_ENDPOINT is the OpenTelemetry-standard env var name
-	// for the collector endpoint; APM_ENABLED/SERVICENAME are ours. All three
+	// for the collector endpoint; APM_ENABLED/SERVICE_NAME are ours. All three
 	// land as flat env vars, not nested JSON, so map them into apm.* here -
 	// that's what apm.InitTracerProvider actually reads.
 	if v := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); v != "" {
@@ -324,7 +324,7 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 	if v := os.Getenv("APM_ENABLED"); v != "" {
 		viper.Set("apm.enabled", v == "true")
 	}
-	if v := os.Getenv("SERVICENAME"); v != "" {
+	if v := os.Getenv("SERVICE_NAME"); v != "" {
 		viper.Set("apm.serviceName", v)
 	}
 
@@ -345,6 +345,38 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 		}
 	}
 
+	// SUBSCRIBERS/NUM_GOROUTINES/MAX_OUTSTANDING_MESSAGES/
+	// MAX_OUT_STANDING_BYTES/TOPIC_SUBSCRIPTIONS are flat env vars, mapped
+	// into the keys pubsub/subscriber.go and pubsub/topology_config.go
+	// actually read (subscribers/numGoroutines/maxOutstandingMessages/
+	// maxOutstandingBytes/topicSubscriptions).
+	if v := os.Getenv("SUBSCRIBERS"); v != "" {
+		var subs []string
+		if err := json.Unmarshal([]byte(v), &subs); err == nil {
+			viper.Set("subscribers", subs)
+		}
+	}
+	if v := os.Getenv("NUM_GOROUTINES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			viper.Set("numGoroutines", n)
+		}
+	}
+	if v := os.Getenv("MAX_OUTSTANDING_MESSAGES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			viper.Set("maxOutstandingMessages", n)
+		}
+	}
+	if v := os.Getenv("MAX_OUT_STANDING_BYTES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			viper.Set("maxOutstandingBytes", n)
+		}
+	}
+	if v := os.Getenv("TOPIC_SUBSCRIPTIONS"); v != "" {
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(v), &parsed); err == nil {
+			viper.Set("topicSubscriptions", parsed)
+		}
+	}
 }
 
 func secretVersionName(project, secret string) string {
