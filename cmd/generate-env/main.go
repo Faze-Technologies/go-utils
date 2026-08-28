@@ -8,11 +8,53 @@ import (
 	"slices"
 )
 
-var commonServices = []string{}
+// commonServices use the plain "commonRedis" secret (generateSecretsConfig's
+// default) - listed explicitly here only because they also gate validity in
+// main() below, not because anything picks "redis" for them specifically.
+var commonServices = []string{
+	"box-service",
+	"claw-service",
+	"finops-service",
+	"listing-service",
+	"prereg-onboarding-service",
+	"sales-history-service",
+	"saved-items-service",
+}
 
 var (
-	ChallengeServices = []string{}
-	SuperteamServices = []string{"cm-miscellaneous-service"}
+	ChallengeServices = []string{
+		"edition-upgrade-service",
+		"fc-select-service",
+		"locking-service",
+		"moment-burn-service",
+		"moment-leaderboard-service",
+		"new-auth-service",
+		"packs-trade-service",
+		"scout-service",
+	}
+	SuperteamServices = []string{
+		"cm-miscellaneous-service",
+		"cm-trade-admin-service",
+		"cm-trade-service",
+		"cm-trade-stats-service",
+		"gift-cards-service",
+		"iap-admin-service",
+		"iap-service",
+		"opensea-leaderboard-service",
+		"superteam-album-admin-service",
+		"superteam-album-service",
+		"superteam-event-admin-service",
+		"superteam-event-service",
+		"superteam-ipo-admin-service",
+		"superteam-ipo-service",
+		"superteam-notification-service",
+		"superteam-packs-admin-service",
+		"superteam-packs-service",
+		"superteam-segmentation-service",
+		"superteam-shop-service",
+		"superteam-transaction-history-service",
+		"superteam-user-service",
+	}
 )
 
 type configItem struct {
