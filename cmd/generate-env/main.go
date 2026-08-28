@@ -8,10 +8,10 @@ import (
 	"slices"
 )
 
-// commonServices use the plain "commonRedis" secret (generateSecretsConfig's
+// commonRedisServices use the plain "commonRedis" secret (generateSecretsConfig's
 // default) - listed explicitly here only because they also gate validity in
 // main() below, not because anything picks "redis" for them specifically.
-var commonServices = []string{
+var commonRedisServices = []string{
 	"box-service",
 	"claw-service",
 	"finops-service",
@@ -22,7 +22,7 @@ var commonServices = []string{
 }
 
 var (
-	ChallengeServices = []string{
+	challengeRedisServices = []string{
 		"edition-upgrade-service",
 		"fc-select-service",
 		"locking-service",
@@ -32,7 +32,7 @@ var (
 		"packs-trade-service",
 		"scout-service",
 	}
-	SuperteamServices = []string{
+	superteamRedisServices = []string{
 		"cm-miscellaneous-service",
 		"cm-trade-admin-service",
 		"cm-trade-service",
@@ -55,6 +55,12 @@ var (
 		"superteam-transaction-history-service",
 		"superteam-user-service",
 	}
+
+	// aerospikeServices and postgresServices gate the aerospikedb/postgres
+	// SECRETS_CONFIG entries - most services need neither. Add service names
+	// here as they're onboarded.
+	aerospikeServices = []string{"superteam-event-admin-service", "superteam-segmentation-service", "superteam-user-service"}
+	postgresServices  = []string{"new-auth-service", "cm-trade-stats-service"}
 )
 
 type configItem struct {
@@ -68,13 +74,19 @@ func generateSecretsConfig(serviceName string) []configItem {
 		{Key: "secretConfig", Env: "secretConfig", ParseJSON: true},
 		{Key: "mongodb", Env: "mongodb", ParseJSON: true},
 		{Key: "commonRedis", Env: "redis", ParseJSON: true},
-		{Key: "postgres", Env: "postgres", ParseJSON: true},
 		{Key: "stage", Env: "stage"},
 	}
 
 	fmt.Printf("Generating .env for %s service\n", serviceName)
 
-	if slices.Contains(ChallengeServices, serviceName) {
+	if slices.Contains(aerospikeServices, serviceName) {
+		items = append(items, configItem{Key: "aerospikedb", Env: "aerospike", ParseJSON: true})
+	}
+	if slices.Contains(postgresServices, serviceName) {
+		items = append(items, configItem{Key: "postgres", Env: "postgres", ParseJSON: true})
+	}
+
+	if slices.Contains(challengeRedisServices, serviceName) {
 		for i := range items {
 			if items[i].Key == "commonRedis" {
 				items[i].Key = "challengeRedis"
@@ -82,7 +94,7 @@ func generateSecretsConfig(serviceName string) []configItem {
 		}
 	}
 
-	if slices.Contains(SuperteamServices, serviceName) {
+	if slices.Contains(superteamRedisServices, serviceName) {
 		for i := range items {
 			if items[i].Key == "commonRedis" {
 				items[i].Key = "superteamRedis"
@@ -99,7 +111,11 @@ func writeEnvFile(serviceName string, items []configItem) error {
 	}
 
 	content := fmt.Sprintf(
-		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nPORT=:8080\nREAD_TIMEOUT=30\nWRITE_TIMEOUT=30\nOTEL_EXPORTER_OTLP_ENDPOINT=otel-collector.observability.svc.cluster.local:4317\nAPM_ENABLED=false\nSERVICENAME=%s\n",
+		// SUBSCRIBERS/NUMGOROUTINES/MAXOUTSTANDINGMESSAGES/MAXOUTSTANDINGBYTES
+		// have no underscores so config.Init's generic env dump (which lowercases
+		// the raw key as-is) lands them on the flat viper keys pubsub/subscriber.go
+		// reads via config.GetSlice("subscribers")/getIntFallback("numGoroutines", ...).
+		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nPORT=:8080\nREAD_TIMEOUT=30\nWRITE_TIMEOUT=30\nSERVICENAME=%s\nSUBSCRIBERS=[]\nNUMGOROUTINES=10\nMAXOUTSTANDINGMESSAGES=1000\nMAXOUTSTANDINGBYTES=52428800\n",
 		secretsConfig, serviceName,
 	)
 
@@ -123,9 +139,9 @@ func main() {
 		serviceName = filepath.Base(cwd)
 	}
 
-	valid := slices.Contains(commonServices, serviceName) ||
-		slices.Contains(ChallengeServices, serviceName) ||
-		slices.Contains(SuperteamServices, serviceName)
+	valid := slices.Contains(commonRedisServices, serviceName) ||
+		slices.Contains(challengeRedisServices, serviceName) ||
+		slices.Contains(superteamRedisServices, serviceName)
 	if !valid {
 		fmt.Fprintln(os.Stderr, "Error: Invalid serviceName provided")
 		os.Exit(1)

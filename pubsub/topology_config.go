@@ -10,9 +10,10 @@ import (
 )
 
 // EnsureTopologyFromConfig is the config-driven entry point: reads
-// `pubSub.topicSubscriptions` from the loaded config and forwards to
-// EnsureTopology. Missing or empty config is a silent no-op so services
-// without a pubsub topology don't have to special-case the call.
+// `topicSubscriptions` (falling back to the older `pubSub.topicSubscriptions`)
+// from the loaded config and forwards to EnsureTopology. Missing or empty
+// config is a silent no-op so services without a pubsub topology don't have
+// to special-case the call.
 func (ps *PubSub) EnsureTopologyFromConfig(ctx context.Context) error {
 	topology, err := loadTopologyFromConfig()
 	if err != nil {
@@ -22,7 +23,13 @@ func (ps *PubSub) EnsureTopologyFromConfig(ctx context.Context) error {
 }
 
 func loadTopologyFromConfig() ([]TopicSpec, error) {
-	raw := config.GetMap("pubSub.topicSubscriptions")
+	// New shape: flat "topicSubscriptions". Old shape:
+	// "pubSub.topicSubscriptions". Support both, same as client.go does for
+	// the service account fields.
+	raw := config.GetMap("topicSubscriptions")
+	if len(raw) == 0 {
+		raw = config.GetMap("pubSub.topicSubscriptions")
+	}
 	if len(raw) == 0 {
 		return nil, nil
 	}
@@ -31,7 +38,7 @@ func loadTopologyFromConfig() ([]TopicSpec, error) {
 	for topicName, subsRaw := range raw {
 		subs, err := toSubscriptionSpecs(subsRaw)
 		if err != nil {
-			return nil, fmt.Errorf("pubSub.topicSubscriptions[%q]: %w", topicName, err)
+			return nil, fmt.Errorf("topicSubscriptions[%q]: %w", topicName, err)
 		}
 		topology = append(topology, TopicSpec{
 			Name:          topicName,
