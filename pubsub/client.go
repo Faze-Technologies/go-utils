@@ -19,8 +19,17 @@ type PubSub struct {
 
 func InitPubSub() *PubSub {
 	logger := logs.GetLogger()
-	svcAccMap := config.GetMap("pubSub.serviceAccount")
-	projectID := config.GetString("pubSub.serviceAccount.project_id")
+
+	// New shape: flat "pubsub" holding the service account fields directly.
+	// Old shape: "pubSub.serviceAccount.*". Support both so services on
+	// either config source keep working.
+	svcAccMap := config.GetMap("pubsub")
+	projectID := config.GetString("pubsub.project_id")
+	if projectID == "" {
+		svcAccMap = config.GetMap("pubSub.serviceAccount")
+		projectID = config.GetString("pubSub.serviceAccount.project_id")
+	}
+
 	svcAccountJSON, err := json.Marshal(svcAccMap)
 	if err != nil {
 		logger.Fatal("Invalid PubSub Service Account map", zap.Error(err))

@@ -32,7 +32,6 @@ type GCSConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	Endpoint        string
-	Bucket          string
 	IsProd          bool
 	ProdBaseURL     string
 }
@@ -53,8 +52,8 @@ var defaultUploader *GCSUploader
 
 // InitDefaultUploader initializes the default package-level uploader
 // Call this once at application startup
-func InitDefaultUploader(options GCSOptions, bucket string, isProd bool) error {
-	uploader, err := NewGCSUploader(options, bucket, isProd)
+func InitDefaultUploader(options GCSOptions, isProd bool) error {
+	uploader, err := NewGCSUploader(options, isProd)
 	if err != nil {
 		return err
 	}
@@ -63,8 +62,8 @@ func InitDefaultUploader(options GCSOptions, bucket string, isProd bool) error {
 }
 
 // InitDefaultUploaderFromViper initializes the default uploader from viper config
-func InitDefaultUploaderFromViper(v *viper.Viper, bucket string) error {
-	uploader, err := NewGCSUploaderFromViper(v, bucket)
+func InitDefaultUploaderFromViper(v *viper.Viper) error {
+	uploader, err := NewGCSUploaderFromViper(v)
 	if err != nil {
 		return err
 	}
@@ -73,8 +72,8 @@ func InitDefaultUploaderFromViper(v *viper.Viper, bucket string) error {
 }
 
 // InitDefaultUploaderFromEnv initializes the default uploader from environment variables
-func InitDefaultUploaderFromEnv(bucket string) error {
-	uploader, err := NewGCSUploaderFromEnv(bucket)
+func InitDefaultUploaderFromEnv() error {
+	uploader, err := NewGCSUploaderFromEnv()
 	if err != nil {
 		return err
 	}
@@ -82,33 +81,33 @@ func InitDefaultUploaderFromEnv(bucket string) error {
 	return nil
 }
 
-// UploadFileToGCS uploads a file using the default package-level uploader
+// UploadFileToGCS uploads a file to bucket using the default package-level uploader
 // You must call InitDefaultUploader* first
-func UploadFileToGCS(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+func UploadFileToGCS(ctx context.Context, bucket string, req *S3UploadRequest) (*UploadResponse, error) {
 	if defaultUploader == nil {
 		return nil, fmt.Errorf("uploader not initialized: call InitDefaultUploader first")
 	}
-	return defaultUploader.UploadFile(ctx, req)
+	return defaultUploader.UploadFile(ctx, bucket, req)
 }
 
-// UploadFileToGCSWithConflictCheck uploads a file using the default package-level uploader
+// UploadFileToGCSWithConflictCheck uploads a file to bucket using the default package-level uploader
 // Only adds timestamp if file already exists in the bucket
 // You must call InitDefaultUploader* first
-func UploadFileToGCSWithConflictCheck(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+func UploadFileToGCSWithConflictCheck(ctx context.Context, bucket string, req *S3UploadRequest) (*UploadResponse, error) {
 	if defaultUploader == nil {
 		return nil, fmt.Errorf("uploader not initialized: call InitDefaultUploader first")
 	}
-	return defaultUploader.UploadFileWithConflictCheck(ctx, req)
+	return defaultUploader.UploadFileWithConflictCheck(ctx, bucket, req)
 }
 
-// UploadFileToGCSWithOverwrite uploads a file using the default package-level uploader
+// UploadFileToGCSWithOverwrite uploads a file to bucket using the default package-level uploader
 // Overwrites the file if it already exists (no timestamp added)
 // You must call InitDefaultUploader* first
-func UploadFileToGCSWithOverwrite(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+func UploadFileToGCSWithOverwrite(ctx context.Context, bucket string, req *S3UploadRequest) (*UploadResponse, error) {
 	if defaultUploader == nil {
 		return nil, fmt.Errorf("uploader not initialized: call InitDefaultUploader first")
 	}
-	return defaultUploader.UploadFileWithOverwrite(ctx, req)
+	return defaultUploader.UploadFileWithOverwrite(ctx, bucket, req)
 }
 
 // validateBucketName validates GCS/S3 bucket name according to naming rules
@@ -143,8 +142,10 @@ func validateBucketName(bucket string) error {
 }
 
 // NewGCSUploader creates a new GCS uploader with the given configuration
-// Validates all required fields before creating the uploader
-func NewGCSUploader(options GCSOptions, bucket string, isProd bool) (*GCSUploader, error) {
+// Validates all required fields before creating the uploader. Bucket isn't
+// part of construction - it's supplied per upload call instead, since a
+// single uploader may write to different buckets across calls.
+func NewGCSUploader(options GCSOptions, isProd bool) (*GCSUploader, error) {
 	// Initialize validator
 	validate := validator.New()
 
@@ -153,12 +154,7 @@ func NewGCSUploader(options GCSOptions, bucket string, isProd bool) (*GCSUploade
 		return nil, fmt.Errorf("validation failed: %v", err)
 	}
 
-	// Validate bucket name
-	if err := validateBucketName(bucket); err != nil {
-		return nil, fmt.Errorf("invalid bucket name: %v", err)
-	}
-
-	config, err := initGCSConfig(options, bucket, isProd)
+	config, err := initGCSConfig(options, isProd)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +166,7 @@ func NewGCSUploader(options GCSOptions, bucket string, isProd bool) (*GCSUploade
 }
 
 // initGCSConfig initializes GCS configuration from GCSOptions struct (internal)
-func initGCSConfig(options GCSOptions, bucket string, isProd bool) (*GCSConfig, error) {
+func initGCSConfig(options GCSOptions, isProd bool) (*GCSConfig, error) {
 	endpoint := options.Endpoint
 	if endpoint == "" {
 		endpoint = "https://storage.googleapis.com"
@@ -186,7 +182,6 @@ func initGCSConfig(options GCSOptions, bucket string, isProd bool) (*GCSConfig, 
 		AccessKeyID:     options.AccessKeyID,
 		SecretAccessKey: options.SecretAccessKey,
 		Endpoint:        endpoint,
-		Bucket:          bucket,
 		IsProd:          isProd,
 		ProdBaseURL:     prodBaseURL,
 	}, nil
@@ -194,7 +189,7 @@ func initGCSConfig(options GCSOptions, bucket string, isProd bool) (*GCSConfig, 
 
 // NewGCSUploaderFromViper creates a GCS uploader from viper config
 // It reads from the "gcs" key in your config file
-func NewGCSUploaderFromViper(v *viper.Viper, bucket string) (*GCSUploader, error) {
+func NewGCSUploaderFromViper(v *viper.Viper) (*GCSUploader, error) {
 	var options GCSOptions
 	if err := v.UnmarshalKey("gcs.options", &options); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal GCS options: %v", err)
@@ -206,12 +201,12 @@ func NewGCSUploaderFromViper(v *viper.Viper, bucket string) (*GCSUploader, error
 	env := strings.ToLower(os.Getenv("ENV"))
 	isProd := env == "prod" || env == "production"
 
-	return NewGCSUploader(options, bucket, isProd)
+	return NewGCSUploader(options, isProd)
 }
 
 // NewGCSUploaderFromEnv creates a GCS uploader from environment variables
 // Validates all required environment variables before creating the uploader
-func NewGCSUploaderFromEnv(bucket string) (*GCSUploader, error) {
+func NewGCSUploaderFromEnv() (*GCSUploader, error) {
 	accessKeyID := os.Getenv("GCS_ACCESS_KEY_ID")
 	if accessKeyID == "" {
 		return nil, fmt.Errorf("GCS_ACCESS_KEY_ID environment variable is required")
@@ -220,11 +215,6 @@ func NewGCSUploaderFromEnv(bucket string) (*GCSUploader, error) {
 	secretAccessKey := os.Getenv("GCS_SECRET_ACCESS_KEY")
 	if secretAccessKey == "" {
 		return nil, fmt.Errorf("GCS_SECRET_ACCESS_KEY environment variable is required")
-	}
-
-	// Validate bucket name
-	if err := validateBucketName(bucket); err != nil {
-		return nil, fmt.Errorf("invalid bucket name: %v", err)
 	}
 
 	endpoint := os.Getenv("GCS_ENDPOINT")
@@ -241,7 +231,6 @@ func NewGCSUploaderFromEnv(bucket string) (*GCSUploader, error) {
 		AccessKeyID:     accessKeyID,
 		SecretAccessKey: secretAccessKey,
 		Endpoint:        endpoint,
-		Bucket:          bucket,
 		IsProd:          isProd,
 		ProdBaseURL:     prodBaseURL,
 	}
@@ -257,7 +246,10 @@ func NewGCSUploaderFromEnv(bucket string) (*GCSUploader, error) {
 // Returns URL based on environment:
 //   - IsProd = true:  ProdBaseURL/fullPath
 //   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
-func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+func (u *GCSUploader) UploadFile(ctx context.Context, bucket string, req *S3UploadRequest) (*UploadResponse, error) {
+	if err := validateBucketName(bucket); err != nil {
+		return nil, fmt.Errorf("invalid bucket name: %v", err)
+	}
 	if err := u.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("request validation failed: %v", err)
 	}
@@ -314,7 +306,7 @@ func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*Up
 	}
 
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(u.config.Bucket),
+		Bucket:      aws.String(bucket),
 		Key:         aws.String(fullPath),
 		Body:        bytes.NewReader(fileBytes),
 		ContentType: aws.String(contentType),
@@ -331,7 +323,7 @@ func (u *GCSUploader) UploadFile(ctx context.Context, req *S3UploadRequest) (*Up
 			fileURL = fmt.Sprintf("http://media.fancraze.com/%s", fullPath)
 		}
 	} else {
-		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", u.config.Bucket, fullPath)
+		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucket, fullPath)
 	}
 
 	return &UploadResponse{
@@ -395,7 +387,10 @@ func (u *GCSUploader) UploadDataToBucket(ctx context.Context, bucketName string,
 // Returns URL based on environment:
 //   - IsProd = true:  ProdBaseURL/fullPath
 //   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
-func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, bucket string, req *S3UploadRequest) (*UploadResponse, error) {
+	if err := validateBucketName(bucket); err != nil {
+		return nil, fmt.Errorf("invalid bucket name: %v", err)
+	}
 	if err := u.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("request validation failed: %v", err)
 	}
@@ -444,7 +439,7 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 	// add a timestamp to avoid clobbering. Any other error (including NotFound)
 	// means we proceed with the original name.
 	_, err = svc.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
-		Bucket: aws.String(u.config.Bucket),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(fullPath),
 	})
 	if err == nil {
@@ -467,7 +462,7 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 	}
 
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(u.config.Bucket),
+		Bucket:      aws.String(bucket),
 		Key:         aws.String(fullPath),
 		Body:        bytes.NewReader(fileBytes),
 		ContentType: aws.String(contentType),
@@ -484,7 +479,7 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 			fileURL = fmt.Sprintf("http://media.fancraze.com/%s", fullPath)
 		}
 	} else {
-		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", u.config.Bucket, fullPath)
+		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucket, fullPath)
 	}
 
 	return &UploadResponse{
@@ -499,7 +494,10 @@ func (u *GCSUploader) UploadFileWithConflictCheck(ctx context.Context, req *S3Up
 // Returns URL based on environment:
 //   - IsProd = true:  ProdBaseURL/fullPath
 //   - IsProd = false: https://storage.googleapis.com/{bucket}/{fullPath}
-func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3UploadRequest) (*UploadResponse, error) {
+func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, bucket string, req *S3UploadRequest) (*UploadResponse, error) {
+	if err := validateBucketName(bucket); err != nil {
+		return nil, fmt.Errorf("invalid bucket name: %v", err)
+	}
 	if err := u.validate.Struct(req); err != nil {
 		return nil, fmt.Errorf("request validation failed: %v", err)
 	}
@@ -555,7 +553,7 @@ func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3Upload
 	}
 
 	_, err = svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(u.config.Bucket),
+		Bucket:      aws.String(bucket),
 		Key:         aws.String(fullPath),
 		Body:        bytes.NewReader(fileBytes),
 		ContentType: aws.String(contentType),
@@ -572,7 +570,7 @@ func (u *GCSUploader) UploadFileWithOverwrite(ctx context.Context, req *S3Upload
 			fileURL = fmt.Sprintf("http://media.fancraze.com/%s", fullPath)
 		}
 	} else {
-		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", u.config.Bucket, fullPath)
+		fileURL = fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucket, fullPath)
 	}
 
 	return &UploadResponse{

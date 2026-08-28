@@ -16,23 +16,34 @@ import (
 
 func InitMongoDB() *mongo.Client {
 	logger := logs.GetLogger()
-	host := config.GetString("mongodb.host")
-	user := config.GetString("mongodb.user")
-	password := url.PathEscape(config.GetString("mongodb.password"))
 
-	// mongodb+srv:// resolves the replica set via a DNS SRV record — that's
-	// how Atlas advertises its hosts, but a raw IP (self-hosted, no DNS
-	// record) has no SRV entry to resolve and must use the plain scheme
-	// with an explicit port instead. authSource=admin is required in both
-	// cases: every mongo user, Atlas or self-hosted, is provisioned on the
-	// admin database regardless of which database it has roles on.
+	// mongodb.uri is a fully-built connection string (set by
+	// go-utils/config's Secret Manager path from a shared mongodb_clusterUrls
+	// entry, which already includes port/db/query params). Anything still on
+	// the legacy CONFIG/ENV_FILE path won't have it set and builds its own
+	// URL from the structured host/user/password fields below instead.
 	var dbURL string
-	if net.ParseIP(host) != nil {
-		dbURL = fmt.Sprintf("mongodb://%s:%s@%s:27017/?retryWrites=true&w=majority&authSource=admin&directConnection=true",
-			user, password, host)
+	if config.IsSet("mongodb.uri") {
+		dbURL = config.GetString("mongodb.uri")
 	} else {
-		dbURL = fmt.Sprintf("mongodb+srv://%s:%s@%s/?retryWrites=true&w=majority&authSource=admin",
-			user, password, host)
+		host := config.GetString("mongodb.host")
+		user := config.GetString("mongodb.user")
+		password := url.PathEscape(config.GetString("mongodb.password"))
+
+		// mongodb+srv:// resolves the replica set via a DNS SRV record —
+		// that's how Atlas advertises its hosts, but a raw IP (self-hosted,
+		// no DNS record) has no SRV entry to resolve and must use the plain
+		// scheme with an explicit port instead. authSource=admin is required
+		// in both cases: every mongo user, Atlas or self-hosted, is
+		// provisioned on the admin database regardless of which database it
+		// has roles on.
+		if net.ParseIP(host) != nil {
+			dbURL = fmt.Sprintf("mongodb://%s:%s@%s:27017/?retryWrites=true&w=majority&authSource=admin&directConnection=true",
+				user, password, host)
+		} else {
+			dbURL = fmt.Sprintf("mongodb+srv://%s:%s@%s/?retryWrites=true&w=majority&authSource=admin",
+				user, password, host)
+		}
 	}
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(dbURL).SetServerAPIOptions(serverAPI).SetMonitor(otelmongo.NewMonitor(otelmongo.WithCommandAttributeDisabled(false)))
