@@ -111,11 +111,7 @@ func writeEnvFile(serviceName string, items []configItem) error {
 	}
 
 	content := fmt.Sprintf(
-		// SUBSCRIBERS/NUMGOROUTINES/MAXOUTSTANDINGMESSAGES/MAXOUTSTANDINGBYTES
-		// have no underscores so config.Init's generic env dump (which lowercases
-		// the raw key as-is) lands them on the flat viper keys pubsub/subscriber.go
-		// reads via config.GetSlice("subscribers")/getIntFallback("numGoroutines", ...).
-		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nPORT=:8080\nREAD_TIMEOUT=30\nWRITE_TIMEOUT=30\nSERVICENAME=%s\nSUBSCRIBERS=[]\nNUMGOROUTINES=10\nMAXOUTSTANDINGMESSAGES=1000\nMAXOUTSTANDINGBYTES=52428800\n",
+		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nPORT=:8080\nREAD_TIMEOUT=30\nWRITE_TIMEOUT=30\nSERVICE_NAME=%s\nSUBSCRIBERS=[]\nNUM_GOROUTINES=10\nMAX_OUTSTANDING_MESSAGES=1000\nMAX_OUT_STANDING_BYTES=52428800\n",
 		secretsConfig, serviceName,
 	)
 
