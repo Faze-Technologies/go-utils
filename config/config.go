@@ -338,11 +338,6 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 		}
 	}
 
-	// ponytail: debug-only dump of the fully resolved config, remove once
-	// you're done inspecting it.
-	if debugJSON, err := json.MarshalIndent(viper.AllSettings(), "", "  "); err == nil {
-		_ = os.WriteFile("config.debug.json", debugJSON, 0644)
-	}
 }
 
 func secretVersionName(project, secret string) string {
