@@ -56,27 +56,9 @@ func writeEnvFile(serviceName string, items []configItem) error {
 		return err
 	}
 
-	server, err := json.Marshal(map[string]interface{}{
-		"port":         ":8080",
-		"readTimeout":  5,
-		"writeTimeout": 5,
-	})
-	if err != nil {
-		return err
-	}
-
-	apm, err := json.Marshal(map[string]interface{}{
-		"enabled":      false,
-		"serviceName":  serviceName,
-		"otlpEndpoint": "otel-collector.observability.svc.cluster.local:4317",
-	})
-	if err != nil {
-		return err
-	}
-
 	content := fmt.Sprintf(
-		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nSERVER='%s'\nAPM='%s'\n",
-		secretsConfig, server, apm,
+		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nPORT=:8080\nREAD_TIMEOUT=30\nWRITE_TIMEOUT=30\nOTEL_EXPORTER_OTLP_ENDPOINT=otel-collector.observability.svc.cluster.local:4317\nAPM_ENABLED=false\nSERVICENAME=%s\n",
+		secretsConfig, serviceName,
 	)
 
 	if err := os.WriteFile(".env", []byte(content), 0644); err != nil {

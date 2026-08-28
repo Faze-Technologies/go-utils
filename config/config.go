@@ -2,11 +2,15 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/goccy/go-json"
 
@@ -14,6 +18,22 @@ import (
 	"github.com/subosito/gotenv"
 
 	"github.com/Faze-Technologies/go-utils/secrets"
+)
+
+// Retry knobs for initFromSecretManager, matching loadSecrets.js's actual
+// delay values (go-utils/logs isn't available yet here - it imports this
+// package, so config can't import it back, hence plain log.Printf below).
+const (
+	// setSecretManagerClient: fixed delayMs=2000 between attempts.
+	secretClientMaxAttempts = 5
+	secretClientRetryDelay  = 2 * time.Second
+
+	// loadWithRetries: retryDelay=3000, waitTime = attempts * retryDelay.
+	secretFetchMaxAttempts = 5
+	secretFetchRetryDelay  = 3 * time.Second
+
+	// loadSecrets: promiseWithTimeout(client.accessSecretVersion(...), 2000).
+	secretFetchTimeout = 2 * time.Second
 )
 
 // environmentProjects maps an ENVIRONMENT value to the GCP project that
@@ -155,16 +175,21 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 
 	serviceName := currentServiceName()
 
+	log.Println("🔄 Starting secrets loading process")
+	log.Println("📦 Setting secret manager client")
+
 	ctx := context.Background()
-	client, err := secrets.NewSecretManagerClient()
+	client, err := newSecretManagerClientWithRetry()
 	if err != nil {
 		panic(fmt.Errorf("failed to create Secret Manager client: %w", err))
 	}
 	defer client.Close()
 
+	log.Printf("📦 Loading %d secrets...", len(items))
+
 	viper.SetConfigType("json")
 	for _, item := range items {
-		value, err := client.GetSecret(ctx, secretVersionName(project, item.Key))
+		value, err := fetchSecretWithRetry(ctx, client, secretVersionName(project, item.Key))
 		if err != nil {
 			panic(fmt.Errorf("failed to fetch %q secret: %w", item.Key, err))
 		}
@@ -247,6 +272,7 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 			}
 		}
 	}
+	log.Println("✅ Secrets loaded successfully")
 
 	viper.Set("serviceName", serviceName)
 	viper.Set("serviceMode", serviceMode)
@@ -268,10 +294,108 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 		}
 		viper.Set(key, value)
 	}
+
+	// OTEL_EXPORTER_OTLP_ENDPOINT is the OpenTelemetry-standard env var name
+	// for the collector endpoint; APM_ENABLED/SERVICENAME are ours. All three
+	// land as flat env vars, not nested JSON, so map them into apm.* here -
+	// that's what apm.InitTracerProvider actually reads.
+	if v := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); v != "" {
+		viper.Set("apm.otlpEndpoint", v)
+	}
+	if v := os.Getenv("APM_ENABLED"); v != "" {
+		viper.Set("apm.enabled", v == "true")
+	}
+	if v := os.Getenv("SERVICENAME"); v != "" {
+		viper.Set("apm.serviceName", v)
+	}
+
+	// PORT/READ_TIMEOUT/WRITE_TIMEOUT are flat env vars (see
+	// cmd/generate-env), mapped into server.* here - what main.go's
+	// startRESTServer/startGRPCServer actually read.
+	if v := os.Getenv("PORT"); v != "" {
+		viper.Set("server.port", v)
+	}
+	if v := os.Getenv("READ_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			viper.Set("server.readTimeout", n)
+		}
+	}
+	if v := os.Getenv("WRITE_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			viper.Set("server.writeTimeout", n)
+		}
+	}
+
+	// ponytail: debug-only dump of the fully resolved config, remove once
+	// you're done inspecting it.
+	if debugJSON, err := json.MarshalIndent(viper.AllSettings(), "", "  "); err == nil {
+		_ = os.WriteFile("config.debug.json", debugJSON, 0644)
+	}
 }
 
 func secretVersionName(project, secret string) string {
 	return fmt.Sprintf("projects/%s/secrets/%s/versions/latest", project, secret)
+}
+
+// firstLine trims an error down to its first line - GCP client errors pile
+// multi-line "error details: ..." blocks (ErrorInfo/Help/LocalizedMessage)
+// onto err.Error(), which floods retry logs; the first line already has the
+// actual reason (e.g. "PermissionDenied desc = ...").
+func firstLine(err error) string {
+	msg := err.Error()
+	if i := strings.IndexByte(msg, '\n'); i != -1 {
+		msg = msg[:i]
+	}
+	return msg
+}
+
+// newSecretManagerClientWithRetry mirrors loadSecrets.js's
+// setSecretManagerClient: retry client creation a few times before giving
+// up, since it's a network call (ADC lookup, first RPC) that can
+// transiently fail. Fixed delay between attempts, same as
+// setSecretManagerClient's delayMs=2000.
+func newSecretManagerClientWithRetry() (*secrets.SecretManagerClient, error) {
+	var lastErr error
+	for attempt := 1; attempt <= secretClientMaxAttempts; attempt++ {
+		client, err := secrets.NewSecretManagerClient()
+		if err == nil {
+			return client, nil
+		}
+		lastErr = err
+		log.Printf("⚠️  setSecretManagerClient failed (attempt %d), retrying...", attempt)
+		if attempt < secretClientMaxAttempts {
+			time.Sleep(secretClientRetryDelay)
+		}
+	}
+	return nil, fmt.Errorf("all %d attempts failed: %s", secretClientMaxAttempts, firstLine(lastErr))
+}
+
+// fetchSecretWithRetry mirrors loadSecrets.js's per-secret retry: each
+// attempt is bounded by secretFetchTimeout, up to secretFetchMaxAttempts
+// total, with a delay that grows linearly with the attempt number (same as
+// loadWithRetries's `waitTime = attempts * retryDelay`).
+func fetchSecretWithRetry(ctx context.Context, client *secrets.SecretManagerClient, name string) (string, error) {
+	var lastErr error
+	for attempt := 1; attempt <= secretFetchMaxAttempts; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, secretFetchTimeout)
+		value, err := client.GetSecret(attemptCtx, name)
+		cancel()
+		if err == nil {
+			return value, nil
+		}
+		lastErr = err
+		if errors.Is(attemptCtx.Err(), context.DeadlineExceeded) {
+			log.Printf("⏱️  Timeout on %s: %s", name, firstLine(err))
+		} else {
+			log.Printf("❌ Error on %s: %s", name, firstLine(err))
+		}
+		if attempt < secretFetchMaxAttempts {
+			wait := time.Duration(attempt) * secretFetchRetryDelay
+			log.Printf("⚠️  Attempt failed. Retrying in %ds...", int(wait.Seconds()))
+			time.Sleep(wait)
+		}
+	}
+	return "", fmt.Errorf("secret %q: all %d attempts failed: %s", name, secretFetchMaxAttempts, firstLine(lastErr))
 }
 
 // kebabToCamel converts a kebab-case module/repo name (e.g.
