@@ -345,6 +345,22 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 		}
 	}
 
+	// POSTGRES is a flat JSON env var that overrides individual postgres.*
+	// fields - the shared "postgres" secret carries one user/host/dbname/etc
+	// for every postgres-using service, but a service may need its own value
+	// for any of those fields. viper.Set (not MergeConfigMap) is required
+	// here: the secret's postgres.* values above are also written via Set,
+	// which always wins over a merged config value regardless of call order,
+	// so overriding must go through Set too.
+	if v := os.Getenv("POSTGRES"); v != "" {
+		var overrides map[string]interface{}
+		if err := json.Unmarshal([]byte(v), &overrides); err == nil {
+			for k, val := range overrides {
+				viper.Set("postgres."+k, val)
+			}
+		}
+	}
+
 	// SUBSCRIBERS/NUM_GOROUTINES/MAX_OUTSTANDING_MESSAGES/
 	// MAX_OUT_STANDING_BYTES/TOPIC_SUBSCRIPTIONS are flat env vars, mapped
 	// into the keys pubsub/subscriber.go and pubsub/topology_config.go
