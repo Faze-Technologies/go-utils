@@ -14,6 +14,8 @@ import (
 var commonRedisServices = []string{
 	"box-service",
 	"claw-service",
+	"cm-key-service",
+	"new-key-service",
 	"finops-service",
 	"listing-service",
 	"prereg-onboarding-service",
