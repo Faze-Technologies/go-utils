@@ -56,6 +56,7 @@ var (
 		"superteam-shop-service",
 		"superteam-transaction-history-service",
 		"superteam-user-service",
+		"simulation-service",
 	}
 
 	// aerospikeServices and postgresServices gate the aerospikedb/postgres
