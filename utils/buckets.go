@@ -15,6 +15,7 @@ const (
 	BucketContent     BucketType = "content"
 	BucketContentApp  BucketType = "contentApp"
 	BucketMarketplace BucketType = "marketplace"
+	BucketNFTAssets   BucketType = "nftAssets"
 )
 
 // bucketsByEnv maps environment -> bucket type -> bucket name. One bucket per
@@ -24,13 +25,15 @@ const (
 //
 // BucketContentApp (iap-admin-service) has no preprod/dev entry because none
 // was given - GetBucket returns an error for it in those environments until
-// one is added.
+// one is added. BucketNFTAssets is a Cloudflare R2 bucket
+// (superteam-event-admin-service), not GCS like the others.
 var bucketsByEnv = map[string]map[BucketType]string{
 	"prod": {
 		BucketMoments:    "fc-moments-assests-prod-live",
 		BucketContent:    "content-fancraze-com-live",
 		BucketContentApp: "prod-content-faze-app-live",
 		BucketKYC:        "prod-kyc-fancraze-com-live",
+		BucketNFTAssets:  "fancraze-nft-assets",
 	},
 	"preprod": {
 		BucketMoments:     "fc-moments-assests-prod",
@@ -38,6 +41,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContent:     "content-fancraze-com",
 		BucketContentApp:  "prod-content-faze-app",
 		BucketMarketplace: "content-fancraze-com",
+		BucketNFTAssets:   "fancraze-nft-assets_",
 	},
 	"dev": {
 		BucketMoments:     "fc-moments-assests-prod",
@@ -45,6 +49,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContent:     "content-fancraze-com",
 		BucketContentApp:  "prod-content-faze-app",
 		BucketMarketplace: "content-fancraze-com",
+		BucketNFTAssets:   "fancraze-nft-assets_",
 	},
 }
 
