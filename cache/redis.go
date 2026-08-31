@@ -404,6 +404,63 @@ func (cache Cache) ZRem(ctx context.Context, key string, members ...interface{})
 	return result, nil
 }
 
+// ZRangeWithScores returns members with scores in a sorted set within the given rank range, ordered by score ascending.
+func (cache Cache) ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redis.Z, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZRangeWithScores(ctx, key, start, stop).Result()
+	if err != nil {
+		logger.Error("error while zrangewithscores", zap.String("key", key), zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+// ZRevRangeWithScores returns members with scores in a sorted set within the given rank range, ordered by score descending.
+func (cache Cache) ZRevRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redis.Z, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.ZRevRangeWithScores(ctx, key, start, stop).Result()
+	if err != nil {
+		logger.Error("error while zrevrangewithscores", zap.String("key", key), zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+// Keys returns all keys matching pattern. Prefer PatternReading (SCAN-based)
+// over large keyspaces - Keys is O(n) and blocks the server while it runs.
+func (cache Cache) Keys(ctx context.Context, pattern string) ([]string, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.Keys(ctx, pattern).Result()
+	if err != nil {
+		logger.Error("error while keys", zap.String("pattern", pattern), zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+// ScriptLoad loads a Lua script into Redis and returns its SHA1 digest, for
+// later invocation via EvalSha.
+func (cache Cache) ScriptLoad(ctx context.Context, script string) (string, error) {
+	logger := logs.WithContext(ctx)
+	sha, err := cache.rDB.ScriptLoad(ctx, script).Result()
+	if err != nil {
+		logger.Error("error while loading script", zap.Error(err))
+		return "", err
+	}
+	return sha, nil
+}
+
+// EvalSha runs a Lua script previously loaded via ScriptLoad, identified by its SHA1 digest.
+func (cache Cache) EvalSha(ctx context.Context, sha string, keys []string, args ...interface{}) (interface{}, error) {
+	logger := logs.WithContext(ctx)
+	result, err := cache.rDB.EvalSha(ctx, sha, keys, args...).Result()
+	if err != nil {
+		logger.Error("error while evalsha", zap.String("sha", sha), zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
 func (cache Cache) SMembers(ctx context.Context, key string) ([]string, error) {
 	logger := logs.WithContext(ctx)
 	result, err := cache.rDB.SMembers(ctx, key).Result()

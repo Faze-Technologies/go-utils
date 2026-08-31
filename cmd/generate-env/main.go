@@ -27,6 +27,7 @@ var (
 	challengeRedisServices = []string{
 		"edition-upgrade-service",
 		"fc-select-service",
+		"leaderboard-service",
 		"locking-service",
 		"moment-burn-service",
 		"moment-leaderboard-service",
@@ -56,6 +57,7 @@ var (
 		"superteam-shop-service",
 		"superteam-transaction-history-service",
 		"superteam-user-service",
+		"simulation-service",
 	}
 
 	// aerospikeServices and postgresServices gate the aerospikedb/postgres
@@ -141,7 +143,7 @@ func main() {
 		slices.Contains(challengeRedisServices, serviceName) ||
 		slices.Contains(superteamRedisServices, serviceName)
 	if !valid {
-		fmt.Fprintln(os.Stderr, "Error: Invalid serviceName provided")
+		fmt.Fprintf(os.Stderr, "Error: Any redis map doesn't contain serviceName : %s\n", serviceName)
 		os.Exit(1)
 	}
 
