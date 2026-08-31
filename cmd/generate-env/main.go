@@ -27,6 +27,7 @@ var (
 	challengeRedisServices = []string{
 		"edition-upgrade-service",
 		"fc-select-service",
+		"leaderboard-service",
 		"locking-service",
 		"moment-burn-service",
 		"moment-leaderboard-service",
