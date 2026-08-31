@@ -61,11 +61,6 @@ var (
 	// here as they're onboarded.
 	aerospikeServices = []string{"superteam-event-admin-service", "superteam-segmentation-service", "superteam-user-service"}
 	postgresServices  = []string{"new-auth-service", "cm-trade-stats-service"}
-
-	// noRedisServices use neither db.InitMongoDB nor go-utils/cache - they
-	// skip the mongodb/redis SECRETS_CONFIG items entirely and get only
-	// secretConfig + stage.
-	noRedisServices = []string{"cm-key-service"}
 )
 
 type configItem struct {
@@ -75,21 +70,14 @@ type configItem struct {
 }
 
 func generateSecretsConfig(serviceName string) []configItem {
-	fmt.Printf("Generating .env for %s service\n", serviceName)
-
-	if slices.Contains(noRedisServices, serviceName) {
-		return []configItem{
-			{Key: "secretConfig", Env: "secretConfig", ParseJSON: true},
-			{Key: "stage", Env: "stage"},
-		}
-	}
-
 	items := []configItem{
 		{Key: "secretConfig", Env: "secretConfig", ParseJSON: true},
 		{Key: "mongodb", Env: "mongodb", ParseJSON: true},
 		{Key: "commonRedis", Env: "redis", ParseJSON: true},
 		{Key: "stage", Env: "stage"},
 	}
+
+	fmt.Printf("Generating .env for %s service\n", serviceName)
 
 	if slices.Contains(aerospikeServices, serviceName) {
 		items = append(items, configItem{Key: "aerospikedb", Env: "aerospike", ParseJSON: true})
@@ -149,8 +137,7 @@ func main() {
 
 	valid := slices.Contains(commonRedisServices, serviceName) ||
 		slices.Contains(challengeRedisServices, serviceName) ||
-		slices.Contains(superteamRedisServices, serviceName) ||
-		slices.Contains(noRedisServices, serviceName)
+		slices.Contains(superteamRedisServices, serviceName)
 	if !valid {
 		fmt.Fprintln(os.Stderr, "Error: Invalid serviceName provided")
 		os.Exit(1)
