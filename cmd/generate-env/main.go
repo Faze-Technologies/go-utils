@@ -44,6 +44,8 @@ var (
 		"iap-admin-service",
 		"iap-service",
 		"opensea-leaderboard-service",
+		"spinner-adminbff-service",
+		"spinner-bff-service",
 		"superteam-album-admin-service",
 		"superteam-album-service",
 		"superteam-event-admin-service",
@@ -60,11 +62,27 @@ var (
 		"simulation-service",
 	}
 
-	// aerospikeServices and postgresServices gate the aerospikedb/postgres
-	// SECRETS_CONFIG entries - most services need neither. Add service names
-	// here as they're onboarded.
+	// aerospikeServices gates the aerospikedb SECRETS_CONFIG entry - most
+	// services need it not to. Add service names here as they're onboarded.
 	aerospikeServices = []string{"superteam-event-admin-service", "superteam-segmentation-service", "superteam-user-service"}
-	postgresServices  = []string{"new-auth-service", "cm-trade-stats-service"}
+
+	// postgresServices gates the postgres SECRETS_CONFIG entry and picks
+	// which named secret a service reads - they all still land in
+	// config.go's shared postgres.* namespace (see item.Env == "postgres"
+	// there), same pattern as commonRedis/challengeRedis/superteamRedis
+	// above. Add service names here as they're onboarded.
+	postgresServices = map[string]postgresSecret{
+		"new-auth-service":       postgresAuth,
+		"cm-trade-stats-service": postgresSuperteam,
+	}
+)
+
+type postgresSecret string
+
+const (
+	postgresDefault   postgresSecret = "postgres"
+	postgresSuperteam postgresSecret = "postgresSuperteam"
+	postgresAuth      postgresSecret = "postgresAuth"
 )
 
 type configItem struct {
@@ -86,8 +104,8 @@ func generateSecretsConfig(serviceName string) []configItem {
 	if slices.Contains(aerospikeServices, serviceName) {
 		items = append(items, configItem{Key: "aerospikedb", Env: "aerospike", ParseJSON: true})
 	}
-	if slices.Contains(postgresServices, serviceName) {
-		items = append(items, configItem{Key: "postgres", Env: "postgres", ParseJSON: true})
+	if pgKey, ok := postgresServices[serviceName]; ok {
+		items = append(items, configItem{Key: string(pgKey), Env: "postgres", ParseJSON: true})
 	}
 
 	if slices.Contains(challengeRedisServices, serviceName) {

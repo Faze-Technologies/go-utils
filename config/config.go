@@ -45,13 +45,12 @@ var environmentProjects = map[string]string{
 	"prod":    "prj-fc-prod",
 }
 
-// secretConfigKey, mongodbKey and postgresKey get special handling in
+// secretConfigKey and mongodbKey get special handling in
 // initFromSecretManager (see the switch there); every other SECRETS_CONFIG
 // entry is merged as-is.
 const (
 	secretConfigKey = "secretConfig"
 	mongodbKey      = "mongodb"
-	postgresKey     = "postgres"
 )
 
 func Get(key string) interface{} {
@@ -231,6 +230,33 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 			continue
 		}
 
+		// Postgres secrets (postgres/postgresSuperteam/postgresAuth, picked
+		// by service family - see item.Key) all hold the same
+		// user/host/password/database shape and land in the same
+		// postgres.* namespace, same pattern as redis above.
+		if item.Env == "postgres" {
+			// Most postgres secrets only hold user/host/database/password,
+			// with db.InitPostgresDB's postgres.port/sslmode filled in from
+			// legacy defaults here - but some (e.g. postgresSuperteam)
+			// specify their own port/sslmode explicitly, which take
+			// precedence when present.
+			viper.Set("postgres.user", parsed["user"])
+			viper.Set("postgres.host", parsed["host"])
+			viper.Set("postgres.password", parsed["password"])
+			viper.Set("postgres.dbname", parsed["database"])
+			if port, ok := parsed["port"]; ok {
+				viper.Set("postgres.port", port)
+			} else {
+				viper.Set("postgres.port", 5432)
+			}
+			if sslmode, ok := parsed["sslmode"].(string); ok && sslmode != "" {
+				viper.Set("postgres.sslmode", sslmode)
+			} else {
+				viper.Set("postgres.sslmode", "disable")
+			}
+			continue
+		}
+
 		switch item.Key {
 		case secretConfigKey:
 			if err := viper.MergeConfigMap(parsed); err != nil {
@@ -275,16 +301,6 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 				}
 				viper.Set("mongodb.database", dbName)
 			}
-		case postgresKey:
-			// The postgres secret only holds user/host/database/password;
-			// db.InitPostgresDB additionally reads postgres.dbname/port/sslmode,
-			// so translate the field name and fill in the legacy defaults here.
-			viper.Set("postgres.user", parsed["user"])
-			viper.Set("postgres.host", parsed["host"])
-			viper.Set("postgres.password", parsed["password"])
-			viper.Set("postgres.dbname", parsed["database"])
-			viper.Set("postgres.port", 5432)
-			viper.Set("postgres.sslmode", "disable")
 		default:
 			if err := viper.MergeConfigMap(map[string]interface{}{item.Env: parsed}); err != nil {
 				panic(fmt.Errorf("failed to merge %q secret: %w", item.Key, err))
