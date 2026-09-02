@@ -44,6 +44,8 @@ var (
 		"iap-admin-service",
 		"iap-service",
 		"opensea-leaderboard-service",
+		"spinner-adminbff-service",
+		"spinner-bff-service",
 		"superteam-album-admin-service",
 		"superteam-album-service",
 		"superteam-event-admin-service",
