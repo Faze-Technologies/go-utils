@@ -61,7 +61,14 @@ func GetAuthUser(c *gin.Context) (*UserDetails, *request.ServiceError) {
 
 func verifyTokenSignature(ctx context.Context, token string) (*jwt.Token, *request.ServiceError) {
 	logger := logs.WithContext(ctx)
-	publicKey := config.GetString("auth_public_key")
+	// New shape: camelCase "authPublicKey", the key the shared secretConfig blob
+	// carries. Old shape: snake_case "auth_public_key", still present in the
+	// static CONFIG blobs of services not yet migrated (e.g. spinner-bff-service
+	// on dev-gcp). Support both so an unmigrated service keeps validating tokens.
+	publicKey := config.GetString("authPublicKey")
+	if publicKey == "" {
+		publicKey = config.GetString("auth_public_key")
+	}
 	publicKeyBytes := []byte(publicKey)
 
 	publicKeyParsed, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)

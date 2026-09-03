@@ -21,6 +21,8 @@ var commonRedisServices = []string{
 	"prereg-onboarding-service",
 	"sales-history-service",
 	"saved-items-service",
+	"new-kyc-service",
+	"go-moment-service",
 }
 
 var (
