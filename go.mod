@@ -20,6 +20,7 @@ require (
 	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/redis/go-redis/extra/redisotel/v9 v9.17.3
 	github.com/redis/go-redis/v9 v9.17.3
+	github.com/spf13/cast v1.10.0
 	github.com/spf13/viper v1.21.0
 	github.com/subosito/gotenv v1.6.0
 	go.mongodb.org/mongo-driver/v2 v2.5.0
@@ -93,7 +94,6 @@ require (
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.17.3 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
-	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
