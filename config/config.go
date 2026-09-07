@@ -101,45 +101,16 @@ func IsSet(key string) bool {
 func Init() {
 	_ = gotenv.Load(".env") // best-effort: fine if it doesn't exist (e.g. in k8s)
 
-	if os.Getenv("CONFIG") == "" && os.Getenv("ENV_FILE") == "" {
-		env := os.Getenv("ENVIRONMENT")
-		if env == "" {
-			env = "dev"
-		}
-		serviceMode := os.Getenv("SERVICE_MODE")
-		if serviceMode == "" {
-			serviceMode = "rest"
-		}
-		isLocalDevelopment := os.Getenv("IS_LOCAL_DEVELOPMENT") == "true"
-		initFromSecretManager(env, serviceMode, isLocalDevelopment)
-		return
+	env := os.Getenv("ENVIRONMENT")
+	if env == "" {
+		env = "dev"
 	}
-
-	envFile := os.Getenv("ENV_FILE")
-	if envFile == "" {
-		envVar := "CONFIG"
-		jsonConfig := os.Getenv(envVar)
-		if jsonConfig == "" {
-			panic(fmt.Errorf("environment variable %s not set", envVar))
-		}
-		var configMap map[string]interface{}
-		if err := json.Unmarshal([]byte(jsonConfig), &configMap); err != nil {
-			panic(fmt.Errorf("failed to unmarshal JSON from environment variable: %w", err))
-		}
-		viper.SetConfigType("json")
-		if err := viper.MergeConfigMap(configMap); err != nil {
-			panic(fmt.Errorf("failed to merge config map into Viper: %w", err))
-		}
-	} else {
-		reader, err := os.Open(fmt.Sprintf("./env.%s.json", envFile))
-		if err != nil {
-			panic(fmt.Errorf("unable to read config file\n %w", err))
-		}
-		viper.SetConfigType("json")
-		if err := viper.MergeConfig(reader); err != nil {
-			panic(fmt.Errorf("failed to merge config map into Viper: %w", err))
-		}
+	serviceMode := os.Getenv("SERVICE_MODE")
+	if serviceMode == "" {
+		serviceMode = "rest"
 	}
+	isLocalDevelopment := os.Getenv("IS_LOCAL_DEVELOPMENT") == "true"
+	initFromSecretManager(env, serviceMode, isLocalDevelopment)
 }
 
 // secretConfigItem mirrors the SECRETS_CONFIG entries cmd/generate-env
