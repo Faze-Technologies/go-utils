@@ -198,6 +198,9 @@ func initFromSecretManager(env, serviceMode string, isLocalDevelopment bool) {
 			}
 			viper.Set("redis.address", fmt.Sprintf("%v:%v", host, write["port"]))
 			viper.Set("redis.password", write["password"])
+			if username, ok := write["username"].(string); ok && username != "" {
+				viper.Set("redis.username", username)
+			}
 			continue
 		}
 

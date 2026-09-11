@@ -24,7 +24,7 @@ type Cache struct {
 func NewCache() *Cache {
 	logger := logs.GetLogger()
 
-	client := redis.NewClient(&redis.Options{
+	opts := &redis.Options{
 		Addr:     config.GetString("redis.address"),
 		Password: config.GetString("redis.password"),
 		DB:       config.GetInt("redis.db"),
@@ -33,7 +33,12 @@ func NewCache() *Cache {
 		MaintNotificationsConfig: &maintnotifications.Config{
 			Mode: maintnotifications.ModeDisabled,
 		},
-	})
+	}
+	if config.IsSet("redis.username") {
+		opts.Username = config.GetString("redis.username")
+	}
+
+	client := redis.NewClient(opts)
 
 	if err := redisotel.InstrumentTracing(client); err != nil {
 		logger.Warn("Failed to instrument Redis tracing", zap.Error(err))
