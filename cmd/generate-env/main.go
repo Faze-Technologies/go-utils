@@ -23,6 +23,7 @@ var commonRedisServices = []string{
 	"saved-items-service",
 	"new-kyc-service",
 	"go-moment-service",
+	"user-behavior-service",
 }
 
 var (
