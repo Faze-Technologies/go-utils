@@ -25,6 +25,7 @@ var commonRedisServices = []string{
 	"go-moment-service",
 	"user-behaviour-service",
 	"support-platform-service",
+	"coupon-service",
 }
 
 var (
