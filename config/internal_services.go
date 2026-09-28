@@ -99,6 +99,7 @@ var InternalServices = map[string]string{
 	"agenticService":                     "http://agentic-service.agentic-service.svc.cluster.local",
 	"userBehaviourService":               "http://user-behaviour-service.user-behaviour-service.svc.cluster.local",
 	"couponService":                      "http://coupon-service.coupon-service.svc.cluster.local",
+	"aiAssistantService":                 "http://ai-assistant-service.ai-assistant-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
