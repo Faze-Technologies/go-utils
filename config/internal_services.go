@@ -100,6 +100,8 @@ var InternalServices = map[string]string{
 	"userBehaviourService":               "http://user-behaviour-service.user-behaviour-service.svc.cluster.local",
 	"couponService":                      "http://coupon-service.coupon-service.svc.cluster.local",
 	"aiAssistantService":                 "http://ai-assistant-service.ai-assistant-service.svc.cluster.local",
+	"contestService":                     "http://contest-service.contest-service.svc.cluster.local",
+	"matchService":                       "http://match-service.match-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed

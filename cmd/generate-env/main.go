@@ -65,6 +65,8 @@ var (
 		"superteam-transaction-history-service",
 		"superteam-user-service",
 		"simulation-service",
+		"match-service",
+		"contest-service",
 	}
 
 	// aerospikeServices gates the aerospikedb SECRETS_CONFIG entry - most
