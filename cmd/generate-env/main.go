@@ -65,7 +65,7 @@ var (
 		"superteam-transaction-history-service",
 		"superteam-user-service",
 		"simulation-service",
-		"match-service",
+		"fantasy-service",
 		"contest-service",
 	}
 
