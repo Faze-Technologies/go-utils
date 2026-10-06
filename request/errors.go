@@ -76,6 +76,17 @@ func CreateMFAError(err error, data interface{}) *ServiceError {
 	return &sErr
 }
 
+// CreateErrorWithStatus creates a ServiceError with any HTTP status code (e.g. 422)
+func CreateErrorWithStatus(statusCode int, message string) *ServiceError {
+	sErr := ServiceError{}
+	errorCode := BadRequestError
+	if statusCode >= http.StatusInternalServerError {
+		errorCode = InternalServerError
+	}
+	sErr.generateCustomError(statusCode, errorCode, message, nil, nil)
+	return &sErr
+}
+
 func (e *ServiceError) generateCustomError(statusCode int, errorCode ErrorCode, message string, err error, data interface{}) {
 	e.HttpStatus = statusCode
 	if e.error != nil && e.error.Error() != "" {
