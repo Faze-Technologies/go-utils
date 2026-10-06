@@ -26,6 +26,7 @@ var commonRedisServices = []string{
 	"user-behaviour-service",
 	"support-platform-service",
 	"coupon-service",
+	"clan-service",
 }
 
 var (
