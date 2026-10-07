@@ -102,6 +102,14 @@ var InternalServices = map[string]string{
 	"aiAssistantService":                 "http://ai-assistant-service.ai-assistant-service.svc.cluster.local",
 	"contestService":                     "http://contest-service.contest-service.svc.cluster.local",
 	"clanService":                        "http://clan-service.clan-service.svc.cluster.local",
+	"dslService":                         "http://dsl-service.dsl-service.svc.cluster.local",
+	"fandomFinanceService":               "http://fandom-finance-service.fandom-finance-service.svc.cluster.local",
+	"fandomMomentMarketPlaceService":     "http://moment-mp-service.fandom-moment-service.svc.cluster.local/moment",
+	"fandomMomentMintingService":         "http://moment-minting-service.fandom-moment-service.svc.cluster.local/moment",
+	"fandomMomentPoolService":            "http://moment-pool-service.fandom-moment-service.svc.cluster.local/moment",
+	"playerServices":                     "http://team-service.team-service.svc.cluster.local/players",
+	"standingsService":                   "http://standings-service.standings-service.svc.cluster.local",
+	"supportAgentService":                "http://support-agents-service.support-agents-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
