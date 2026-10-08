@@ -69,6 +69,7 @@ var (
 		"fantasy-service",
 		"contest-service",
 		"experience-gateway",
+		"fanplay-leaderboard-service",
 	}
 
 	// aerospikeServices gates the aerospikedb SECRETS_CONFIG entry - most
