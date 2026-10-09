@@ -16,6 +16,9 @@ const (
 	BucketContentApp  BucketType = "contentApp"
 	BucketMarketplace BucketType = "marketplace"
 	BucketNFTAssets   BucketType = "nftAssets"
+
+	BucketFanplayTeams       BucketType = "fanplayTeams"
+	BucketFanplayLeaderboard BucketType = "fanplayLeaderboard"
 )
 
 // bucketsByEnv maps environment -> bucket type -> bucket name. One bucket per
@@ -34,6 +37,9 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContentApp: "prod-content-faze-app-live",
 		BucketKYC:        "prod-kyc-fancraze-com-live",
 		BucketNFTAssets:  "fancraze-nft-assets",
+
+		BucketFanplayTeams:       "fanplay-teams-live",
+		BucketFanplayLeaderboard: "fanplay-leaderboard-live",
 	},
 	"preprod": {
 		BucketMoments:     "fc-moments-assests-prod",
@@ -42,6 +48,9 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContentApp:  "prod-content-faze-app",
 		BucketMarketplace: "content-fancraze-com",
 		BucketNFTAssets:   "fancraze-nft-assets_",
+
+		BucketFanplayTeams:       "fanplay-teams",
+		BucketFanplayLeaderboard: "fanplay-leaderboard",
 	},
 	"dev": {
 		BucketMoments:     "fc-moments-assests-prod",
@@ -50,6 +59,9 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContentApp:  "prod-content-faze-app",
 		BucketMarketplace: "content-fancraze-com",
 		BucketNFTAssets:   "fancraze-nft-assets_",
+
+		BucketFanplayTeams:       "fanplay-teams",
+		BucketFanplayLeaderboard: "fanplay-leaderboard",
 	},
 }
 
