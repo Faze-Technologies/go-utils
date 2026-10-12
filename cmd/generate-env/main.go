@@ -72,6 +72,10 @@ var (
 		"fanplay-leaderboard-service",
 	}
 
+	// bffServices get the BFF-style env: no mongodb secret, plus APM and
+	// RATE_LIMIT. They must also be in one of the redis lists above.
+	bffServices = []string{"spinner-bff-service", "spinner-adminbff-service", "experience-gateway"}
+
 	// aerospikeServices gates the aerospikedb SECRETS_CONFIG entry - most
 	// services need it not to. Add service names here as they're onboarded.
 	aerospikeServices = []string{"superteam-event-admin-service", "superteam-segmentation-service", "superteam-user-service"}
@@ -111,6 +115,9 @@ func generateSecretsConfig(serviceName string) []configItem {
 
 	fmt.Printf("Generating .env for %s service\n", serviceName)
 
+	if slices.Contains(bffServices, serviceName) {
+		items = slices.DeleteFunc(items, func(i configItem) bool { return i.Key == "mongodb" })
+	}
 	if slices.Contains(aerospikeServices, serviceName) {
 		items = append(items, configItem{Key: "aerospikedb", Env: "aerospike", ParseJSON: true})
 	}
@@ -146,6 +153,13 @@ func writeEnvFile(serviceName string, items []configItem) error {
 		"SECRETS_CONFIG='%s'\nENVIRONMENT=dev\nSERVICE_MODE=rest\nIS_LOCAL_DEVELOPMENT=true\nPORT=:8080\nREAD_TIMEOUT=30\nWRITE_TIMEOUT=30\nSERVICE_NAME=%s\nSUBSCRIBERS=[]\nNUM_GOROUTINES=10\nMAX_OUTSTANDING_MESSAGES=1000\nMAX_OUT_STANDING_BYTES=52428800\n",
 		secretsConfig, serviceName,
 	)
+
+	if slices.Contains(bffServices, serviceName) {
+		content += fmt.Sprintf(
+			"APM='{\"enabled\": true, \"serviceName\": \"%s\", \"otlpEndpoint\": \"signoz-otel-collector.observability.svc.cluster.local:4317\"}'\nRATE_LIMIT='{\"count\": 250, \"duration\": 60, \"whitelisted-origins\": [\"https://tachyon.rath.fi\"]}'\n",
+			serviceName,
+		)
+	}
 
 	if err := os.WriteFile(".env", []byte(content), 0644); err != nil {
 		return err
