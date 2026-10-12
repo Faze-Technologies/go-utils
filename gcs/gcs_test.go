@@ -5,9 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -192,5 +197,41 @@ func TestReadEachMissingObject(t *testing.T) {
 	})
 	if !errors.Is(err, ErrNotFound) || !strings.Contains(err.Error(), "n/missing") {
 		t.Errorf("ReadEach = %v, want ErrNotFound naming n/missing", err)
+	}
+}
+
+// A transient failure during an upload is retried: every Write replaces the whole object, so repeating it is
+// safe. A proxy in front of fake GCS answers the first upload request with 503.
+func TestWriteRetriesTransientFailure(t *testing.T) {
+	if os.Getenv("STORAGE_EMULATOR_HOST") == "" {
+		t.Skip("STORAGE_EMULATOR_HOST not set: skipping a test that needs fake GCS")
+	}
+	_, bucket := newTestClient(t)
+	target, err := url.Parse("http://" + os.Getenv("STORAGE_EMULATOR_HOST"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	var failed atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/upload/") && failed.CompareAndSwap(false, true) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	t.Setenv("STORAGE_EMULATOR_HOST", strings.TrimPrefix(srv.URL, "http://"))
+	c, err := NewClient(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	write(t, c, bucket, "retried", "body")
+	if !failed.Load() {
+		t.Fatal("the proxy never failed an upload: the test did not exercise a retry")
+	}
+	if got, err := c.Read(context.Background(), bucket, "retried"); err != nil || string(got) != "body" {
+		t.Errorf("Read = %q, %v; want the retried upload", got, err)
 	}
 }

@@ -80,13 +80,15 @@ func (c *Client) read(ctx context.Context, bucket, object string, fn func(io.Rea
 
 // Write streams a new object: fn writes the content to w, and the object is committed only when fn returns
 // nil. When fn or the upload fails, the upload is aborted: nothing is committed and an object already at
-// that name is left as it was. contentType is stored on the object, with no Content-Encoding, so readers
+// that name is left as it was. A transient failure is retried by the client. contentType is stored on the object, with no Content-Encoding, so readers
 // get back exactly the bytes fn wrote.
 func (c *Client) Write(ctx context.Context, bucket, object, contentType string, fn func(w io.Writer) error) error {
 	// Only a cancelled context aborts an upload: closing the writer would commit what was written so far.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	w := c.client.Bucket(bucket).Object(object).NewWriter(ctx)
+	// Every write replaces the whole object, so retrying a failed request is safe; without this the client
+	// retries only uploads that carry a precondition.
+	w := c.client.Bucket(bucket).Object(object).Retryer(storage.WithPolicy(storage.RetryAlways)).NewWriter(ctx)
 	w.ContentType = contentType
 	if err := fn(w); err != nil {
 		cancel()
