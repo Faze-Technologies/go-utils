@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -33,10 +34,14 @@ func (r *responseBodyWriter) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
 
+// sensitiveKeys are lower-case: callers compare against strings.ToLower(key).
 var sensitiveKeys = map[string]bool{
 	"password": true, "token": true, "otp": true,
-	"cardNumber": true, "cvv": true, "privateKey": true,
+	"cardnumber": true, "cvv": true, "privatekey": true,
 	"secret": true, "authorization": true,
+	"email": true, "mobile": true, "phone": true, "phonenumber": true,
+	"mobilenumber": true, "name": true, "firstname": true, "lastname": true,
+	"address": true,
 }
 
 // resolveClientIP returns the real client IP from X-Forwarded-For (first IP
@@ -81,11 +86,40 @@ func redactBody(body []byte) string {
 	return string(out)
 }
 
+// redactQuery masks the values of sensitive keys in a raw query string before
+// attaching it to spans/logs.
+func redactQuery(rawQuery string) string {
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return "[unparsable query]"
+	}
+	for key := range values {
+		if sensitiveKeys[strings.ToLower(key)] {
+			values[key] = []string{"[REDACTED]"}
+		}
+	}
+	return values.Encode()
+}
+
+// dumpRequestWithoutCredentials dumps the request headers for panic logs with
+// the Authorization and Cookie values masked. The body is left out.
+func dumpRequestWithoutCredentials(r *http.Request) []byte {
+	safe := *r
+	safe.Header = r.Header.Clone()
+	for _, h := range []string{"Authorization", "Cookie"} {
+		if safe.Header.Get(h) != "" {
+			safe.Header.Set(h, "[REDACTED]")
+		}
+	}
+	dump, _ := httputil.DumpRequest(&safe, false)
+	return dump
+}
+
 func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		query := c.Request.URL.RawQuery
+		query := redactQuery(c.Request.URL.RawQuery)
 		c.Set("logs", logger)
 
 		// Buffer request body so handler can still read it
@@ -126,8 +160,6 @@ func GinLogger(logger *zap.Logger) gin.HandlerFunc {
 			userID = user.Id
 			span.SetAttributes(
 				attribute.String("user.id", user.Id),
-				attribute.String("user.email", user.Email),
-				attribute.String("user.mobile", user.Mobile),
 				attribute.Bool("user.kyc", user.KycStatus),
 				attribute.String("user.kyc_country", user.KycCountry),
 			)
@@ -208,7 +240,7 @@ func GinRecovery(logger *zap.Logger) gin.HandlerFunc {
 					}
 				}
 
-				httpRequest, _ := httputil.DumpRequest(c.Request, true)
+				httpRequest := dumpRequestWithoutCredentials(c.Request)
 				if brokenPipe {
 					logger.Sugar().Error(c.Request.URL.Path, zap.Any("error", err))
 					logger.Sugar().Error(string(httpRequest))
