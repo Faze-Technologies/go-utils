@@ -38,8 +38,8 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketKYC:        "prod-kyc-fancraze-com-live",
 		BucketNFTAssets:  "fancraze-nft-assets",
 
-		BucketFanplayTeams:       "fanplay-teams-live",
-		BucketFanplayLeaderboard: "fanplay-leaderboard-live",
+		BucketFanplayTeams:       "fanplay-teams-prod",
+		BucketFanplayLeaderboard: "fanplay-leaderboard-prod",
 	},
 	"preprod": {
 		BucketMoments:     "fc-moments-assests-prod",
