@@ -1,5 +1,4 @@
-// Package gcs reads large Cloud Storage objects one partition at a time.
-package gcs
+package utils
 
 import (
 	"context"
