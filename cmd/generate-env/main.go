@@ -70,6 +70,7 @@ var (
 		"contest-service",
 		"experience-gateway",
 		"fanplay-leaderboard-service",
+		"winning-service",
 	}
 
 	// bffServices get the BFF-style env: no mongodb secret, plus APM and
