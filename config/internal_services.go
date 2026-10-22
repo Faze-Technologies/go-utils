@@ -112,6 +112,7 @@ var InternalServices = map[string]string{
 	"supportAgentService":                "http://support-agents-service.support-agents-service.svc.cluster.local",
 	"fanplayLeaderboardService":          "http://fanplay-leaderboard-service.fanplay-leaderboard-service.svc.cluster.local",
 	"winningService":                     "http://winning-service.winning-service.svc.cluster.local",
+	"referralService":                    "http://referral-service.referral-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
