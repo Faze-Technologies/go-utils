@@ -72,6 +72,8 @@ var (
 		"fanplay-leaderboard-service",
 		"winning-service",
 		"referral-service",
+		"upgrade-service",
+		"scrap-service",
 	}
 
 	// bffServices get the BFF-style env: no mongodb secret, plus APM and
