@@ -16,6 +16,7 @@ const (
 	BucketContentApp  BucketType = "contentApp"
 	BucketMarketplace BucketType = "marketplace"
 	BucketNFTAssets   BucketType = "nftAssets"
+	BucketPrivateOps  BucketType = "privateOps"
 
 	BucketFanplayTeams       BucketType = "fanplayTeams"
 	BucketFanplayLeaderboard BucketType = "fanplayLeaderboard"
@@ -29,7 +30,8 @@ const (
 // BucketContentApp (iap-admin-service) has no preprod/dev entry because none
 // was given - GetBucket returns an error for it in those environments until
 // one is added. BucketNFTAssets is a Cloudflare R2 bucket
-// (superteam-event-admin-service), not GCS like the others.
+// (superteam-event-admin-service), not GCS like the others. BucketPrivateOps
+// is iap-service's bucket for receipts and chargeback reports.
 var bucketsByEnv = map[string]map[BucketType]string{
 	"prod": {
 		BucketMoments:    "fc-moments-assests-prod-live",
@@ -37,6 +39,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContentApp: "prod-content-faze-app-live",
 		BucketKYC:        "prod-kyc-fancraze-com-live",
 		BucketNFTAssets:  "fancraze-nft-assets",
+		BucketPrivateOps: "prod-private-ops-fancraze-com-live",
 
 		BucketFanplayTeams:       "fanplay-teams-live",
 		BucketFanplayLeaderboard: "fanplay-leaderboard-live",
@@ -48,6 +51,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContentApp:  "prod-content-faze-app",
 		BucketMarketplace: "content-fancraze-com",
 		BucketNFTAssets:   "fancraze-nft-assets_",
+		BucketPrivateOps:  "prod-private-ops-fancraze-com",
 
 		BucketFanplayTeams:       "fanplay-teams",
 		BucketFanplayLeaderboard: "fanplay-leaderboard",
@@ -59,6 +63,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketContentApp:  "prod-content-faze-app",
 		BucketMarketplace: "content-fancraze-com",
 		BucketNFTAssets:   "fancraze-nft-assets_",
+		BucketPrivateOps:  "prod-private-ops-fancraze-com",
 
 		BucketFanplayTeams:       "fanplay-teams",
 		BucketFanplayLeaderboard: "fanplay-leaderboard",
