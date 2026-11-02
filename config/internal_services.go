@@ -115,6 +115,7 @@ var InternalServices = map[string]string{
 	"referralService":                    "http://referral-service.referral-service.svc.cluster.local",
 	"upgradeService":                     "http://upgrade-service.upgrade-service.svc.cluster.local",
 	"missionService":                     "http://mission-service.mission-service.svc.cluster.local",
+	"userLevelService":                   "http://user-level-service.user-level-service.svc.cluster.local",
 }
 
 // ProxyServices generates the proxy URLs if needed
