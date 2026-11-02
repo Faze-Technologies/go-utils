@@ -73,7 +73,7 @@ var (
 		"winning-service",
 		"referral-service",
 		"upgrade-service",
-		"scrap-service",
+		"mission-service",
 	}
 
 	// bffServices get the BFF-style env: no mongodb secret, plus APM and
