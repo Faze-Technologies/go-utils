@@ -17,6 +17,7 @@ const (
 	BucketMarketplace BucketType = "marketplace"
 	BucketNFTAssets   BucketType = "nftAssets"
 	BucketPrivateOps  BucketType = "privateOps"
+	BucketOpsData     BucketType = "opsData"
 
 	BucketFanplayTeams       BucketType = "fanplayTeams"
 	BucketFanplayLeaderboard BucketType = "fanplayLeaderboard"
@@ -31,7 +32,8 @@ const (
 // was given - GetBucket returns an error for it in those environments until
 // one is added. BucketNFTAssets is a Cloudflare R2 bucket
 // (superteam-event-admin-service), not GCS like the others. BucketPrivateOps
-// is iap-service's bucket for receipts and chargeback reports.
+// is iap-service's bucket for receipts and chargeback reports. BucketOpsData holds files that ops upload for services to
+// read, such as the audience CSVs of notification campaigns (ops-data-prod for dev and preprod, ops-data-live for prod).
 var bucketsByEnv = map[string]map[BucketType]string{
 	"prod": {
 		BucketMoments:    "fc-moments-assests-prod-live",
@@ -40,6 +42,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketKYC:        "prod-kyc-fancraze-com-live",
 		BucketNFTAssets:  "fancraze-nft-assets",
 		BucketPrivateOps: "prod-private-ops-fancraze-com-live",
+		BucketOpsData:    "ops-data-live",
 
 		BucketFanplayTeams:       "fanplay-teams-live",
 		BucketFanplayLeaderboard: "fanplay-leaderboard-live",
@@ -52,6 +55,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketMarketplace: "content-fancraze-com",
 		BucketNFTAssets:   "fancraze-nft-assets_",
 		BucketPrivateOps:  "prod-private-ops-fancraze-com",
+		BucketOpsData:     "ops-data-prod",
 
 		BucketFanplayTeams:       "fanplay-teams",
 		BucketFanplayLeaderboard: "fanplay-leaderboard",
@@ -64,6 +68,7 @@ var bucketsByEnv = map[string]map[BucketType]string{
 		BucketMarketplace: "content-fancraze-com",
 		BucketNFTAssets:   "fancraze-nft-assets_",
 		BucketPrivateOps:  "prod-private-ops-fancraze-com",
+		BucketOpsData:     "ops-data-prod",
 
 		BucketFanplayTeams:       "fanplay-teams",
 		BucketFanplayLeaderboard: "fanplay-leaderboard",
