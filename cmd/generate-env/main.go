@@ -74,6 +74,7 @@ var (
 		"referral-service",
 		"upgrade-service",
 		"mission-service",
+		"user-level-service",
 	}
 
 	// bffServices get the BFF-style env: no mongodb secret, plus APM and
