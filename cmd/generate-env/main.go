@@ -75,6 +75,7 @@ var (
 		"upgrade-service",
 		"mission-service",
 		"user-level-service",
+		"collectables-score-service",
 	}
 
 	// bffServices get the BFF-style env: no mongodb secret, plus APM and
