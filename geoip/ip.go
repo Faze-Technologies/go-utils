@@ -12,10 +12,11 @@ func normalizeIP(s string) string {
 	return s
 }
 
-// ResolveClientIP returns the leftmost IP from X-Forwarded-For, falling back
-// to the socket peer. GCP's L7 load balancer strips client-supplied XFF and
-// writes its own, so the leftmost entry is the real client. If you ever move
-// off GCP (e.g. add Cloudflare), revisit this.
+// ResolveClientIP returns the client IP from X-Forwarded-For, falling back to the socket peer.
+// GCP's external Application Load Balancer APPENDS "<client IP>, <load balancer IP>" to whatever the
+// client sent, so the leftmost entry is client-controlled. The trusted client IP is the second-to-last
+// entry; a single entry (local dev, in-cluster) is used as is.
+// If you ever move off GCP (e.g. add Cloudflare), revisit this.
 func ResolveClientIP(h http.Header, remoteAddr string) string {
 	var xff string
 
@@ -43,8 +44,20 @@ func ResolveClientIP(h http.Header, remoteAddr string) string {
 		}
 	}
 	if xff != "" {
-		first := normalizeIP(strings.Split(xff, ",")[0])
-		if ip := net.ParseIP(first); ip != nil {
+		var parts []string
+		for _, p := range strings.Split(xff, ",") {
+			if p = normalizeIP(p); p != "" {
+				parts = append(parts, p)
+			}
+		}
+		trusted := ""
+		switch {
+		case len(parts) >= 2:
+			trusted = parts[len(parts)-2]
+		case len(parts) == 1:
+			trusted = parts[0]
+		}
+		if ip := net.ParseIP(trusted); ip != nil {
 			return ip.String()
 		}
 	}

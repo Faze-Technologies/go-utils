@@ -39,19 +39,35 @@ var sensitiveKeys = map[string]bool{
 	"secret": true, "authorization": true,
 }
 
-// resolveClientIP returns the real client IP from X-Forwarded-For (first IP
-// in the chain), falling back to Gin's ClientIP(). Deployments sit behind
-// GCP's load balancer, which re-originates the TCP connection from its own
-// GFE IP pool (35.191.0.0/16) — so RemoteAddr/ClientIP() alone identifies
-// the LB, not the caller, and SetTrustedProxies can't fix that since the LB
-// IP rotates per request.
+// resolveClientIP returns the real client IP. GCP's external Application Load Balancer APPENDS
+// "<client IP>, <load balancer IP>" to whatever X-Forwarded-For the client sent:
+//
+//	X-Forwarded-For: <anything the client sent>, <client IP>, <load balancer IP>
+//
+// so the first value is client-controlled. The trusted client IP is the second-to-last entry; with a
+// single entry (local dev, in-cluster calls) that entry is used. Falls back to Gin's ClientIP().
 func resolveClientIP(c *gin.Context) string {
-	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
-		if ip := strings.TrimSpace(strings.Split(xff, ",")[0]); ip != "" {
-			return ip
-		}
+	if ip := trustedClientFromXFF(c.GetHeader("X-Forwarded-For")); ip != "" {
+		return ip
 	}
 	return c.ClientIP()
+}
+
+// trustedClientFromXFF picks the load-balancer-appended client entry from an X-Forwarded-For value.
+func trustedClientFromXFF(xff string) string {
+	var parts []string
+	for _, p := range strings.Split(xff, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	switch {
+	case len(parts) >= 2:
+		return parts[len(parts)-2]
+	case len(parts) == 1:
+		return parts[0]
+	}
+	return ""
 }
 
 // resolveInternalUserID extracts userId from headers/query for internal service-to-service calls.
