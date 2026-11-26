@@ -100,6 +100,7 @@ var InternalServices = map[string]string{
 	"userBehaviourService":               "http://user-behaviour-service.user-behaviour-service.svc.cluster.local",
 	"couponService":                      "http://coupon-service.coupon-service.svc.cluster.local",
 	"aiAssistantService":                 "http://ai-assistant-service.ai-assistant-service.svc.cluster.local",
+	"cmsService":                         "http://cms-service.cms-service.svc.cluster.local",
 	"contestService":                     "http://contest-service.contest-service.svc.cluster.local",
 	"clanService":                        "http://clan-service.clan-service.svc.cluster.local",
 	"dslService":                         "http://dsl-service.dsl-service.svc.cluster.local",
